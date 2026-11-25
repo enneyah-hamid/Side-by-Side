@@ -2288,10 +2288,11 @@ function seedFix(){const N=now(),ANCH={demande_creee:0,en_attente:0,acceptee:1,p
     if(b.ends){if(b.ends.client&&b.ends.client<b.start)b.ends.client=Math.min(end,N);if(b.ends.companion&&b.ends.companion<b.start)b.ends.companion=Math.min(end+2*60000,N)}
   })}
 
-/* Barre de navigation du bas : masquée pendant le défilement vers le bas, visible dès qu'on remonte,
+/* Barre de navigation du bas : masquée pendant le défilement vers le bas, visible dès qu'on remonte ou qu'on s'arrête,
    en haut et en bas de la page, et à chaque changement d'écran */
-(function(){let lastY=window.scrollY,acc=0;const root=document.documentElement,show=()=>{root.classList.remove('navhide');acc=0};
+(function(){let lastY=window.scrollY,acc=0,idle=null;const root=document.documentElement,show=()=>{root.classList.remove('navhide');acc=0};
   window.addEventListener('scroll',()=>{const y=window.scrollY,d=y-lastY,max=root.scrollHeight-window.innerHeight;lastY=y;
+    clearTimeout(idle);idle=setTimeout(show,700);   // réapparaît d'elle-même quand le défilement s'arrête
     if(y<40||y>=max-4||S.sheet){show();return}
     acc=(acc>0)===(d>0)?acc+d:d;
     if(acc>24)root.classList.add('navhide');else if(acc<-12)root.classList.remove('navhide')},{passive:true});
