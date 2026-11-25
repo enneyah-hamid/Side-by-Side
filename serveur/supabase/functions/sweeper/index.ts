@@ -29,7 +29,9 @@ serve(async (req) => {
     }
   }
   // 2. Acceptées mais non payées 2 h avant : expirées, paiement ouvert annulé, carte cadeau libérée
-  for (const b of (await admin.from("bookings").select("*").eq("status", "acceptee").lt("starts_at", iso(2 * H))).data ?? []) {
+  const { data: st } = await admin.from("settings").select("payment_hold_hours").single();
+  const holdLimit = iso(-(st?.payment_hold_hours ?? 24) * H);
+  for (const b of (await admin.from("bookings").select("*").eq("status", "acceptee").or(`starts_at.lt.${iso(2 * H)},mission_signed_companion.lt.${holdLimit}`)).data ?? []) {
     if (await transition(b.id, ["acceptee"], { status: "expiree" })) {
       if (b.stripe_payment_intent_id) { try { await stripe.paymentIntents.cancel(b.stripe_payment_intent_id); } catch (_) { /* le webhook rembourse si payé entre-temps */ } }
       await admin.rpc("release_gift", { p_booking: b.id });

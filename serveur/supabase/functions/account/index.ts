@@ -34,8 +34,8 @@ serve(async (req) => {
       admin.from("user_secrets").delete().eq("user_id", me.id), admin.from("notifications").delete().eq("user_id", me.id),
       admin.from("companion_photos").delete().eq("companion_id", me.id),
     ]);
-    await admin.from("profiles").update({ first_name: "Compte supprimé", last_name: "-", phone: null, city: null, trusted_contact: null, suspended: true, stripe_customer_id: null }).eq("id", me.id);
-    await admin.from("companions").update({ bio: null, area: null, verified: false, tax_id: null, postal_address: null }).eq("id", me.id);
+    await admin.from("profiles").update({ first_name: "Compte supprimé", last_name: "-", phone: null, city: null, trusted_contact: null, suspended: true, stripe_customer_id: null, privilege_since: null }).eq("id", me.id);
+    await admin.from("companions").update({ bio: null, area: null, verified: false, admin_doc_path: null }).eq("id", me.id);
     await admin.auth.admin.updateUserById(me.id, { email: `supprime-${me.id}@invalid.sidebyside`, ban_duration: "876000h", user_metadata: {} });
     await audit(me.id, "Suppression du compte (données personnelles anonymisées)");
     return json({ ok: true });

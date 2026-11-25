@@ -15,6 +15,8 @@ export async function finalize(bookingId: string, piId: string | null): Promise<
   while (distress === code) distress = rand6();
   const expires = new Date(new Date(b.ends_at).getTime() + 2 * 3_600_000).toISOString();
   await admin.from("booking_secrets").upsert({ booking_id: b.id, code, distress, expires_at: expires }, { onConflict: "booking_id", ignoreDuplicates: true });
+  const num = String(b.ref).replace(/\D/g, ""), y = new Date().getFullYear();
+  await admin.from("invoices").insert({ number: `F-${y}-${num}`, kind: "client", booking_id: b.id, recipient_id: b.client_id, total: b.amount_total });   // doublon impossible (index unique)
   await event(b.id, "paiement_confirme", null, piId ? "Stripe" : "carte cadeau");
   await event(b.id, "confirmee", null, "Système");
   await notify(b.client_id, `Paiement confirmé pour ${b.ref}. Votre code de rencontre est disponible dans la réservation.`, b.id, "paiement");

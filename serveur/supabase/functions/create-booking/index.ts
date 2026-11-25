@@ -51,7 +51,7 @@ serve(async (req) => {
   const { data: b, error } = await admin.from("bookings").insert({
     client_id: me.id, companion_id, category, starts_at: start.toISOString(), hours: h,
     place: String(place).trim(), language: language ? String(language).slice(0, 30) : null, note: note ? String(note) : null,
-    experience_id: experience_id ?? null, status: "en_attente", ...p, ...ben,
+    experience_id: experience_id ?? null, status: "en_attente", buffer_min: c.travel_buffer_min ?? 0, ...p, ...ben,
   }).select().single();
   if (error) { if (error.code === "23P01") throw new HttpError(409, "Créneau déjà réservé"); throw error; }
   await event(b.id, "en_attente", me.id, "demande créée");

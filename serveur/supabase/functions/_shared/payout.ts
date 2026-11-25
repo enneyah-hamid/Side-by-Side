@@ -39,6 +39,7 @@ export async function releasePayout(bookingId: string, actor: string | null = nu
     await admin.from("bookings").update({ stripe_transfer_id: transfer.id, status: "cloturee" }).eq("id", b.id).eq("status", "versement");
     const { error } = await admin.from("ledger").insert({ booking_id: b.id, kind: "Versement", amount: b.amount_payout, stripe_object_id: transfer.id });
     if (error && error.code !== "23505") throw error;
+    await admin.from("invoices").insert({ number: `FA-${new Date().getFullYear()}-${String(b.ref).replace(/\D/g, "")}`, kind: "companion", booking_id: b.id, recipient_id: b.companion_id, total: b.amount_payout });
     await event(b.id, "cloturee", actor, "versement exécuté");
     await notify(b.companion_id, `Versement de ${Number(b.amount_payout).toFixed(2)} € envoyé pour ${b.ref}.`, b.id, "versement");
     return { ok: true, transfer: transfer.id };

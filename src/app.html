@@ -68,7 +68,8 @@ select.lang{width:auto;height:36px;border-radius:10px;border:1px solid var(--lin
 .btn:disabled{opacity:.5;cursor:not-allowed}
 :focus-visible{outline:2px solid var(--accent);outline-offset:2px}
 /* puces */
-.pill{display:inline-flex;align-items:center;gap:6px;border-radius:99px;padding:3px 10px;font:700 .72rem var(--f-body);white-space:nowrap}
+.pill{display:inline-flex;align-items:center;gap:6px;border-radius:99px;padding:3px 10px;font:700 .72rem var(--f-body);white-space:nowrap;max-width:100%}
+.row>.pill,.bk-h>.pill{white-space:normal;line-height:1.25;text-align:center}
 .pill::before{content:"";width:7px;height:7px;border-radius:50%;background:currentColor}
 .t-ok{background:var(--ok-soft);color:var(--ok)}.t-warn{background:var(--warn-soft);color:var(--warn)}.t-bad{background:var(--bad-soft);color:var(--bad)}.t-info{background:var(--info-soft);color:var(--info)}.t-accent{background:var(--accent-soft);color:var(--accent)}.t-muted{background:var(--surface-2);color:var(--muted)}.t-gold{background:var(--gold-soft);color:var(--gold)}
 .chip{display:inline-block;border:1px solid var(--line);border-radius:99px;padding:3px 10px;font-size:.76rem;font-weight:600;color:var(--muted);background:var(--surface)}
@@ -112,7 +113,8 @@ input[type=range]{padding:0;accent-color:var(--accent)}
 .stars{color:var(--gold);font-weight:700;font-size:.84rem}
 /* réservations */
 .bk{display:flex;flex-direction:column;gap:12px}
-.bk-h{display:flex;gap:10px;align-items:center}
+.bk-h{display:flex;gap:10px;align-items:center;flex-wrap:wrap;row-gap:6px}
+.bk-h>*{min-width:0}
 .bk-m{display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:8px 14px;font-size:.88rem}
 .bk-m>div{min-width:0;overflow-wrap:anywhere}
 .acts{display:flex;flex-wrap:wrap;gap:8px}
@@ -143,7 +145,8 @@ nav.tabs .wrap{display:flex;justify-content:space-around;gap:2px}
 nav.tabs button{flex:1;background:none;border:0;color:var(--muted);font:700 .68rem var(--f-body);padding:9px 2px 8px;display:flex;flex-direction:column;align-items:center;gap:3px;cursor:pointer;min-width:0}
 nav.tabs button svg{width:21px;height:21px}
 nav.tabs button.on{color:var(--accent)}
-nav.tabs button span{white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100%}
+nav.tabs button span{white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100%;font-size:min(.68rem,2.3vw);letter-spacing:-.01em}
+html.comfort .tabs button span{font-size:min(.68rem,1.9vw)}
 main{padding-bottom:96px}
 /* feuilles */
 .scrim{position:fixed;inset:0;background:var(--scrim);z-index:50;display:flex;align-items:flex-end;justify-content:center}
@@ -424,7 +427,7 @@ label.row{flex-wrap:nowrap;align-items:flex-start}label.row input{margin-top:3px
 .cd b{font:700 .95rem var(--f-mono)}.cd.free{border-color:rgba(91,208,138,.5)}.cd.busy{background:var(--gold-soft);border-color:var(--gold);color:var(--gold)}.cd.blocked{background:var(--bad-soft);color:var(--bad);border-color:transparent}.cd.off{opacity:.45;cursor:default}
 .legend{display:flex;flex-wrap:wrap;gap:12px;color:var(--muted)}.legend span{display:inline-flex;align-items:center;gap:5px}
 .lg{width:10px;height:10px;border-radius:3px;display:inline-block;border:1px solid var(--line)}.lg.free{border-color:var(--ok)}.lg.busy{background:var(--gold)}.lg.blocked{background:var(--bad)}.lg.off{opacity:.4}
-.qr{display:flex;gap:6px;overflow-x:auto;padding-bottom:4px}.qr .chip{white-space:nowrap}
+.qr{display:flex;gap:6px;flex-wrap:wrap;padding-bottom:4px;min-width:0;max-width:100%}.qr .chip{white-space:normal;text-align:left;max-width:100%}
 .att{display:inline-flex;align-items:center;gap:6px;font-weight:600}.att svg{width:15px;height:15px}
 ul.tight{margin:0;padding-inline-start:18px;display:flex;flex-direction:column;gap:4px}
 .btn.xs{padding:5px 10px;font-size:.76rem}.slot{border-color:var(--gold);color:var(--gold)}
@@ -752,7 +755,7 @@ function seed(){
   seedV19();b5.tip=10;
   seedV20();
   seedV22();S.comfort=!!window.__comfort;
-  seedV23();
+  seedV23();seedFix();
 }
 function comp(id){return S.companions.find(c=>c.id===id)}
 function endOf(b){return b.start+(b.hours*60+b.extMins)*M}
@@ -2256,6 +2259,26 @@ function liveSubmit(k,f,d){if(!LIVE)return false;
 function liveSignup(v){const role=v.type==='companion'?'companion':v.type==='biz'?'business':'client';
   return SB.auth.signUp({email:v.email.trim(),password:v.pw,options:{data:{first_name:v.first.trim(),last_name:v.last.trim(),birth_date:v.dob,phone:(v.tel||'').replace(/[\s.-]/g,''),city:v.city,role,non_circumvention:!!v.nc}}})}
 
+
+/* Cohérence des données de démonstration : jours et horaires de disponibilité, chronologie de l'historique */
+function seedFix(){const N=now(),ANCH={demande_creee:0,en_attente:0,acceptee:1,paiement_confirme:2,confirmee:2};
+  S.bookings.forEach(b=>{const c=comp(b.companionId);if(!c)return;
+    const dur=b.hours+(b.extMins||0)/60;let d=new Date(b.start),guard=0;
+    const past=b.start<N;
+    while(!c.days.includes((d.getDay()+6)%7)&&guard++<7)d=new Date(d.getTime()+(past?-DAY:DAY));
+    let hh=d.getHours()+d.getMinutes()/60;const lo=c.from,hi=c.to-dur;
+    if(hh<lo||hh>hi){hh=Math.max(lo,Math.min(hi,hh));d.setHours(Math.floor(hh),Math.round((hh%1)*60),0,0)}
+    const shift=d.getTime()-b.start;
+    if(shift){const clash=S.bookings.some(x=>x!==b&&x.companionId===b.companionId&&ACTIVE.includes(x.status)&&ACTIVE.includes(b.status)&&d.getTime()<endOf(x)&&x.start<d.getTime()+dur*H);
+      if(!clash){b.start=d.getTime();['starts','ends'].forEach(k=>{if(b[k])for(const w of ['client','companion'])if(b[k][w])b[k][w]+=shift});if(b.startedAt)b.startedAt+=shift;if(b.code&&b.code.expires)b.code.expires+=shift}}
+    const end=b.start+dur*H,h=b.history||[];if(!h.length)return;
+    const created=Math.min(h[0].t,b.start-26*H,N-H);
+    const at=s=>s in ANCH?Math.min(created+ANCH[s]*2*H,b.start-24*H):s==='controle'?b.start-H:s==='verifie'?b.start-5*60000:s==='en_cours'?b.start:(s==='fin_declaree'||s==='double_attente')?end:s==='terminee'?end+10*60000:s==='versement'?end+15*60000:s==='cloturee'?end+3*DAY:null;
+    let last=-Infinity;h.forEach(e=>{const t=at(e.s);if(t!=null)e.t=t;if(e.t<last)e.t=last+60000;if(e.t>N)e.t=Math.max(last+60000,N-60000);last=e.t});
+    if(b.mission&&b.mission.signed){const sg=b.mission.signed,acc=(h.find(e=>e.s==='acceptee')||h[0]).t,pay=(h.find(e=>e.s==='paiement_confirme')||{}).t;
+      if(sg.companion)sg.companion=Math.min(Math.max(sg.companion,acc),pay?pay-20*60000:sg.companion);if(sg.client)sg.client=Math.min(Math.max(sg.client,(sg.companion||acc)+5*60000),pay?pay-10*60000:Infinity)}
+    if(b.ends){if(b.ends.client&&b.ends.client<b.start)b.ends.client=Math.min(end,N);if(b.ends.companion&&b.ends.companion<b.start)b.ends.companion=Math.min(end+2*60000,N)}
+  })}
 /* ================= V2.5 — Mode connecté, lot 2 : mission, SOS, notifications, identité, RGPD, administration sécurisée =================
    Tout ce qui suit ne s'exécute qu'en mode connecté (application native). La démo en ligne ne change pas. */
 const LIVE_ADM={data:null,busy:false};

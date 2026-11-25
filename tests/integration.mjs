@@ -78,7 +78,7 @@ async function confirmedBooking(client, comp, dayN, extra = {}) {
   const client = await user("client@test.fr", { ...base, first_name: "Sophie", role: "client" }, { identity_verified: true });
   const client2 = await user("client2@test.fr", { ...base, first_name: "Léa", role: "client" }, { identity_verified: true });
   const intrus = await user("intrus@test.fr", { ...base, first_name: "Marc", role: "client" }, { identity_verified: true });
-  const comp = await user("camille@test.fr", { ...base, first_name: "Camille", role: "companion", non_circumvention: true });
+  const comp = await user("camille@test.fr", { ...base, first_name: "Camille", role: "companion", non_circumvention: true }, { identity_verified: true });
   const adm = await user("admin@test.fr", { ...base, first_name: "Hamid", role: "admin" });
   const fake = await user("faux-admin@test.fr", { ...base, first_name: "Pirate", role: "admin" });
   check("A01", "Inscription avec le rôle « admin » demandé → compte client", (await row("profiles", fake.id)).role === "client");
@@ -282,6 +282,91 @@ async function confirmedBooking(client, comp, dayN, extra = {}) {
   const rs = await call(intrus, "create-booking", { companion_id: comp.id, category: "shopping", hours: 2, place: "Paris centre", starts_at: day(14) });
   check("K08", "Compte suspendu par l'admin → plus aucune action possible", r.ok && rs.status === 403);
   check("K09", "Chaque action admin est journalisée", (await count("audit_log", { actor_id: adm.id })) >= 4);
+
+
+  // ---------- Audit fonctionnel (agenda, vérifications, parrainage, messagerie, justificatifs, historique) ----------
+  const c3 = await user("client3@test.fr", { ...base, first_name: "Inès", role: "client" }, { identity_verified: true });
+  const c4 = await user("client4@test.fr", { ...base, first_name: "Nora", role: "client" }, { identity_verified: true });
+  await svc.from("companions").update({ travel_buffer_min: 60 }).eq("id", comp.id);
+  const t0 = Date.parse(day(20));
+  const a1 = await B({ starts_at: new Date(t0).toISOString() }, c3);
+  r = await B({ starts_at: new Date(t0 + 2.5 * H).toISOString() }, c4);
+  check("H01", "Délai de déplacement de 60 min : demande 30 min après la fin d'une mission refusée", !!a1.booking && r.status === 409, r.error);
+  r = await B({ starts_at: new Date(t0 + 3 * H).toISOString() }, c4);
+  check("H02", "Demande après le délai de déplacement acceptée", !!r.booking, r.error);
+  await svc.from("companions").update({ travel_buffer_min: 0 }).eq("id", comp.id);
+  const vac = [22, 23, 24].map((n) => ({ companion_id: comp.id, day: day(n).slice(0, 10) }));
+  const { error: vErr } = await comp.c.from("companion_blocked_days").insert(vac);
+  r = await B({ starts_at: day(23) }, c3);
+  check("H03", "Période de vacances bloquée sur plusieurs jours → réservation refusée", !vErr && r.status === 400, vErr?.message ?? r.error);
+  const { error: vErr2 } = await client.c.from("companion_blocked_days").insert({ companion_id: comp.id, day: day(30).slice(0, 10) });
+  check("H04", "Un client ne peut pas bloquer l'agenda d'un accompagnateur", !!vErr2);
+  const hold = await B({ starts_at: day(25) }, c3);
+  await call(comp, "booking-action", { booking_id: hold.booking.id, action: "accept" });
+  await svc.from("bookings").update({ mission_signed_companion: at(-25 * H) }).eq("id", hold.booking.id);
+  await internal("sweeper", {});
+  check("H05", "Acceptée mais non payée depuis plus de 24 h → expirée, créneau libéré", (await row("bookings", hold.booking.id)).status === "expiree");
+  r = await B({ starts_at: day(25) }, c4);
+  check("H06", "Le créneau libéré peut de nouveau être réservé", !!r.booking, r.error);
+  // Vérifications obligatoires de l'accompagnateur
+  const comp2 = await user("hugo@test.fr", { ...base, first_name: "Hugo", role: "companion", non_circumvention: true });
+  await svc.from("companions").update({ verified: true, video_interview_ok: true, categories: ["shopping"], hour_from: 0, hour_to: 24 }).eq("id", comp2.id);
+  const q2 = await call(c4, "create-booking", { companion_id: comp2.id, category: "shopping", starts_at: day(26), hours: 2, place: "Paris centre" });
+  r = await call(comp2, "booking-action", { booking_id: q2.booking?.id, action: "accept" });
+  check("H07", "Accompagnateur sans identité vérifiée : acceptation d'une mission payée refusée", r.status === 403, r.error);
+  await svc.from("profiles").update({ identity_verified: true }).eq("id", comp2.id);
+  r = await call(comp2, "booking-action", { booking_id: q2.booking?.id, action: "accept" });
+  check("H08", "Accompagnateur sans compte de versement Stripe : acceptation refusée", r.status === 403, r.error);
+  // Données sensibles du proche effacées à la clôture
+  const pr = await call(c3, "create-booking", { companion_id: comp.id, category: "shopping", starts_at: day(27), hours: 2, place: "Paris centre", beneficiary: { name: "Mamie Jeanne", relation: "Grand-parent", phone: "0612345678", needs: ["mobilite"], info: "Diabétique, marche lentement", consent: true } });
+  await call(c3, "refund-booking", { booking_id: pr.booking.id });
+  const prb = await row("bookings", pr.booking.id);
+  check("H09", "Téléphone et informations de santé du proche effacés après la clôture", prb.beneficiary_phone === null && prb.beneficiary_info === null && prb.beneficiary_needs.length === 0 && prb.beneficiary_name === "Mamie Jeanne");
+  // Parrainage
+  const refCode = (await row("profiles", c3.id)).referral_code;
+  const filleul = await user("filleul@test.fr", { ...base, first_name: "Tom", role: "client", referral_code: refCode.toLowerCase() }, { identity_verified: true });
+  check("H10", "Code de parrainage saisi à l'inscription → filleul rattaché", (await count("referrals", { sponsor_id: c3.id, referee_id: filleul.id })) === 1);
+  const { error: refErr } = await filleul.c.from("referrals").insert({ sponsor_id: filleul.id, referee_id: filleul.id });
+  check("H11", "Auto-parrainage ou parrainage fabriqué impossible", !!refErr);
+  const fb = await B({ starts_at: day(28) }, filleul);
+  check("H12", "Aucune récompense tant que le filleul n'a pas réalisé de mission", (await count("gift_cards", { owner_id: c3.id, is_referral_credit: true })) === 0);
+  await svc.from("bookings").update({ status: "terminee" }).eq("id", fb.booking.id);
+  await svc.from("bookings").update({ status: "cloturee" }).eq("id", fb.booking.id);
+  check("H13", "Première mission clôturée du filleul → crédit de parrainage pour le parrain", (await count("gift_cards", { owner_id: c3.id, is_referral_credit: true })) === 1);
+  // Messagerie
+  const n0 = await count("notifications", { user_id: comp.id, kind: "message" });
+  const { error: mErr } = await client.c.from("messages").insert({ booking_id: m.id, sender_id: client.id, body: "Merci ! Mon numéro : 06 12 34 56 78" });
+  const lastMsg = (await svc.from("messages").select("body").eq("booking_id", m.id).order("id", { ascending: false }).limit(1).single()).data;
+  check("H14", "Message : coordonnées masquées par le serveur", !mErr && /\[masqué\]/.test(lastMsg.body) && !/06 12/.test(lastMsg.body), lastMsg.body);
+  check("H15", "Message : notification du destinataire", (await count("notifications", { user_id: comp.id, kind: "message" })) === n0 + 1);
+  const { error: lErr, data: lData } = await intrus.c.from("messages").select("id").eq("booking_id", m.id);
+  check("H16", "Conversation inaccessible à une personne étrangère", (lData ?? []).length === 0);
+  const ap = `${client.id}/piece-jointe-${Date.now()}.jpg`;
+  await client.c.storage.from("documents").upload(ap, new Blob([new Uint8Array([255, 216, 255, 224, 1, 2])], { type: "image/jpeg" }));
+  await client.c.from("messages").insert({ booking_id: m.id, sender_id: client.id, body: "Photo du lieu", attachment_path: ap });
+  const dl1 = await comp.c.storage.from("documents").download(ap), dl2 = await client2.c.storage.from("documents").download(ap);
+  check("H17", "Pièce jointe lisible par l'autre partie, illisible par un tiers", !dl1.error && !!dl2.error, dl1.error?.message);
+  // Versement effectué, justificatifs, historique
+  const mine = (await comp.c.rpc("my_bookings")).data ?? [];
+  const mb = mine.find((x) => x.booking.id === m.id)?.booking, other2 = mine.find((x) => x.booking.status === "confirmee")?.booking;
+  check("H18", "« Versement effectué » seulement après confirmation du virement Stripe", mb?.payout_done === true && (!other2 || other2.payout_done === false));
+  const inv = (await svc.from("invoices").select("number, kind, total").eq("booking_id", m.id)).data;
+  check("H19", "Justificatifs générés : facture client et relevé accompagnateur", inv.some((x) => x.kind === "client") && inv.some((x) => x.kind === "companion"), inv.map((x) => x.number).join(", "));
+  const { data: myInv } = await comp.c.from("invoices").select("number");
+  check("H20", "Chacun ne voit que ses propres justificatifs", (myInv ?? []).every((x) => x.number.startsWith("FA-")));
+  const ev = (await client.c.from("booking_events").select("status, created_at").eq("booking_id", m.id).order("id")).data;
+  const chrono = ev.every((e, i) => i === 0 || Date.parse(e.created_at) >= Date.parse(ev[i - 1].created_at));
+  const seq = ev.map((e) => e.status).filter(Boolean);
+  check("H21", "Historique consultable, chronologique et complet", chrono && ["en_attente", "acceptee", "paiement_confirme", "confirmee", "verifie", "en_cours", "double_attente", "terminee", "cloturee"].every((s) => seq.includes(s)), seq.join(" → "));
+  // Dossier administratif
+  const { error: aErr } = await comp.c.from("companions").update({ legal_status: "micro", tax_id: "12345678900011" }).eq("id", comp.id);
+  check("H22", "Dossier administratif transmis → « en cours de vérification »", !aErr && (await row("companions", comp.id)).admin_status === "en_cours", aErr?.message);
+  r = await call(adm, "admin-action", { action: "admin_review", companion_id: comp.id, approve: true });
+  check("H23", "Dossier administratif validé par l'admin", r.ok && (await row("companions", comp.id)).admin_status === "valide");
+  // Suppression de compte avec abonnement Privilège
+  const priv = await user("privilege@test.fr", { ...base, first_name: "Paul", role: "client" }, { privilege_since: new Date().toISOString() });
+  r = await call(priv, "account", { action: "delete", confirm: "SUPPRIMER" });
+  check("H24", "Suppression de compte : abonnement Privilège résilié", r.ok && (await row("profiles", priv.id)).privilege_since === null);
 
   // ---------- Base de données (accès direct par l'API) ----------
   const { data: other } = await client2.c.from("bookings").select("id").eq("client_id", client.id);

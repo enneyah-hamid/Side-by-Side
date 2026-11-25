@@ -13,7 +13,7 @@ serve(async (req) => {
       const since = new Date(Date.now() - 7 * 86_400_000).toISOString();
       const [ids, comps, disputes, alerts, review, logs] = await Promise.all([
         admin.from("identity_checks").select("id, user_id, doc_path, selfie_path, created_at, profiles!identity_checks_user_id_fkey(first_name, last_name, birth_date, role)").eq("status", "pending").order("created_at").limit(50),
-        admin.from("companions").select("id, bio, hourly_rate, tier, categories, verified, video_interview_ok, profiles!companions_id_fkey(first_name, last_name, city, identity_verified, suspended)").eq("verified", false).limit(50),
+        admin.from("companions").select("id, bio, hourly_rate, tier, categories, verified, video_interview_ok, legal_status, tax_id, admin_status, admin_doc_path, profiles!companions_id_fkey(first_name, last_name, city, identity_verified, suspended)").or("verified.eq.false,admin_status.eq.en_cours").limit(50),
         admin.from("disputes").select("*, bookings(ref, status, amount_total, amount_payout)").eq("status", "ouvert").order("deadline").limit(50),
         admin.from("safety_alerts").select("*, bookings(ref)").gte("created_at", since).order("created_at", { ascending: false }).limit(50),
         admin.from("bookings").select("id, ref, status, starts_at, amount_total, payout_error").in("status", ["a_verifier", "incident", "contestee"]).order("starts_at").limit(50),
@@ -21,7 +21,8 @@ serve(async (req) => {
       ]);
       const identity = await Promise.all((ids.data ?? []).map(async (x) => ({ ...x, doc_url: await signed(x.doc_path), selfie_url: await signed(x.selfie_path) })));
       await audit(me.id, "Consultation du tableau de bord administrateur (pièces d'identité incluses)");
-      return json({ identity, companions: comps.data ?? [], disputes: disputes.data ?? [], alerts: alerts.data ?? [], review: review.data ?? [], logs: logs.data ?? [] });
+      const companions = await Promise.all((comps.data ?? []).map(async (c: any) => ({ ...c, admin_doc_url: await signed(c.admin_doc_path) })));
+      return json({ identity, companions, disputes: disputes.data ?? [], alerts: alerts.data ?? [], review: review.data ?? [], logs: logs.data ?? [] });
     }
     case "identity_review": {
       const { data: c } = await admin.from("identity_checks").update({ status: body.approve ? "approved" : "refused", reason: body.reason ? String(body.reason).slice(0, 300) : null, reviewed_by: me.id, reviewed_at: new Date().toISOString() })
@@ -39,6 +40,13 @@ serve(async (req) => {
       if (!c) throw new HttpError(404, "Accompagnateur introuvable");
       await audit(me.id, `Profil accompagnateur ${body.approve ? "validé" : "refusé"}${body.tier ? ` (${body.tier})` : ""}`, c.id);
       await notify(c.id, body.approve ? "Votre profil est validé : il est désormais visible des clients." : "Votre profil n'a pas été validé. Contactez l'assistance.", null, "verification");
+      return json({ ok: true });
+    }
+    case "admin_review": {                                      // dossier administratif de l'accompagnateur (statut, SIRET, justificatif)
+      const { data: c } = await admin.from("companions").update({ admin_status: body.approve ? "valide" : "refuse" }).eq("id", body.companion_id).eq("admin_status", "en_cours").select("id").single();
+      if (!c) throw new HttpError(409, "Dossier déjà traité");
+      await audit(me.id, `Dossier administratif ${body.approve ? "validé" : "refusé"}${body.reason ? ` : ${body.reason}` : ""}`, c.id);
+      await notify(c.id, body.approve ? "Votre dossier administratif est validé." : `Votre dossier administratif est refusé${body.reason ? ` : ${body.reason}` : ""}. Transmettez un nouveau justificatif.`, null, "verification");
       return json({ ok: true });
     }
     case "suspend": {
