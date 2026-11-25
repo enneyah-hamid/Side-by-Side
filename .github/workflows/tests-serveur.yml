@@ -51,7 +51,7 @@ jobs:
         with: { deno-version: v2.x }
       - name: Test des origines autorisées (CORS)
         if: always()
-        run: SUPABASE_URL=http://localhost SUPABASE_SERVICE_ROLE_KEY=x APP_ORIGIN=https://sidebyside.example deno test --allow-env --allow-net --allow-read --allow-import tests/cors_test.ts 2>&1 | tee tests/resultats-cors.txt
+        run: set -o pipefail; SUPABASE_URL=http://localhost SUPABASE_SERVICE_ROLE_KEY=x APP_ORIGIN=https://sidebyside.example deno test --node-modules-dir=none --allow-env --allow-net --allow-read --allow-import tests/cors_test.ts 2>&1 | tee tests/resultats-cors.txt
       - name: Résumé
         if: always()
         run: |
