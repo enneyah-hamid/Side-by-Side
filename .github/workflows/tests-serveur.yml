@@ -16,10 +16,11 @@ jobs:
         working-directory: serveur
         run: |
           [ -f supabase/config.toml ] || supabase init --force
-          CFG=$(find . -name config.toml | head -1); echo "configuration : $CFG"; ls -R . | head -20
           # Double authentification TOTP (activée par défaut sur les projets Supabase hébergés)
-          sed -i '/^\[auth.mfa.totp\]/,/^\[/ s/enroll_enabled = false/enroll_enabled = true/; /^\[auth.mfa.totp\]/,/^\[/ s/verify_enabled = false/verify_enabled = true/' "$CFG"
-          grep -A3 '^\[auth.mfa.totp\]' "$CFG"
+          for CFG in $(find supabase -maxdepth 1 -name 'config.*'); do
+            perl -0pi -e 's/(totp\W*\{[^}]*?)enroll_enabled(\W*)false/$1enroll_enabled$2true/s; s/(totp\W*\{[^}]*?)verify_enabled(\W*)false/$1verify_enabled$2true/s; s/(totp\W*\{[^}]*?)enrollEnabled(\W*)false/$1enrollEnabled$2true/s; s/(totp\W*\{[^}]*?)verifyEnabled(\W*)false/$1verifyEnabled$2true/s' "$CFG"
+            echo "configuration : $CFG"; grep -n -i -A4 'totp' "$CFG" | head -12
+          done
           supabase start -x studio,imgproxy,vector,logflare,supavisor,postgres-meta,mailpit
           supabase status -o env > ../tests/.sb.env
       - name: Démarrer le serveur Stripe simulé et les fonctions serveur
