@@ -2259,6 +2259,7 @@ function liveSignup(v){const role=v.type==='companion'?'companion':v.type==='biz
 /* ================= V2.5 — Mode connecté, lot 2 : mission, SOS, notifications, identité, RGPD, administration sécurisée =================
    Tout ce qui suit ne s'exécute qu'en mode connecté (application native). La démo en ligne ne change pas. */
 const LIVE_ADM={data:null,busy:false};
+const tr_=(m,bad)=>{toast(m,bad);render()};   // message affiché après une réponse du serveur
 function liveNotifs(rows){S.notifs=(rows||[]).map(n=>({id:n.id,to:S.role,text:n.body,t:Date.parse(n.created_at),read:!!n.read_at,kind:n.kind,bid:n.booking_id}))}
 async function liveExtra(p){
   const [nt,ids]=await Promise.all([SB.from('notifications').select('*').order('created_at',{ascending:false}).limit(60),SB.from('identity_checks').select('status,reason,created_at').order('created_at',{ascending:false}).limit(1)]);
@@ -2284,7 +2285,7 @@ function liveMfaHtml(){const M=S.liveMfa;if(!M){setTimeout(liveMfaInit,0);return
   return `<section class="section" style="max-width:420px;margin:0 auto"><h2>Double authentification</h2>${M.step==='enroll'?`<p class="muted">Première connexion : scannez ce QR code avec une application d'authentification (Google Authenticator, Microsoft Authenticator…).</p><div class="card" style="text-align:center"><img src="${M.qr}" alt="QR code de double authentification" style="width:200px;height:200px;background:#fff;padding:8px;border-radius:12px"><p class="xs muted">Ou saisissez la clé : <b class="sel num">${esc(M.secret)}</b></p></div>`:'<p class="muted">L\'espace administrateur exige un second facteur à chaque connexion.</p>'}
   <form class="card stack" data-form="live-mfa"><div class="field"><label for="mfa-code">Code à 6 chiffres de l'application d'authentification</label><input id="mfa-code" name="code" inputmode="numeric" autocomplete="one-time-code" maxlength="6" placeholder="••••••"></div><p class="note t-bad sm" id="mfa-err" hidden></p><button class="btn pri full">Valider</button></form></section>`}
 async function liveAdminLoad(){LIVE_ADM.busy=true;render();try{LIVE_ADM.data=await liveCall('admin-action',{action:'overview'})}catch(e){toast(e.message,true)}LIVE_ADM.busy=false;render()}
-const admDo=(body,ok)=>liveCall('admin-action',body).then(()=>{toast(ok);liveAdminLoad()}).catch(e=>toast(e.message,true));
+const admDo=(body,ok)=>liveCall('admin-action',body).then(()=>{toast(ok);liveAdminLoad()}).catch(e=>tr_(e.message,true));
 const lfd=t=>t?fdt(Date.parse(t)):'—';
 function lAdmDash(){const D=LIVE_ADM.data;if(!D)return `<section class="section"><p class="muted">${LIVE_ADM.busy?'Chargement…':'Aucune donnée.'}</p><button class="btn" data-a="live-adm-refresh">Actualiser</button></section>`;
   return `<section class="section"><div class="row"><h2 class="grow">Tableau de bord</h2><button class="btn ghost" data-a="live-adm-refresh">Actualiser</button></div>
@@ -2345,9 +2346,9 @@ function liveBoot2(){
   api.declareEnd=(b)=>ok(M(b,'end'),'Fin confirmée.');
   api.requestExt=(b,mins)=>ok(M(b,'ext_request',{minutes:+mins}),'Demande de prolongation envoyée.');
   api.respondExt=(b,yes)=>ok(M(b,'ext_respond',{accept:!!yes}),yes?'Prolongation acceptée.':'Prolongation refusée.');
-  api.payExt=(b)=>{M(b,'ext_pay').then(r=>livePayWith(r.client_secret,r.amount,'Prolongation '+b.ref)).catch(e=>toast(e.message,true));return{ok:1,msg:'Préparation du paiement…'}};
+  api.payExt=(b)=>{M(b,'ext_pay').then(r=>livePayWith(r.client_secret,r.amount,'Prolongation '+b.ref)).catch(e=>tr_(e.message,true));return{ok:1,msg:'Préparation du paiement…'}};
   api.openDispute=(b,who,motif,desc,status)=>status==='incident'?ok(M(b,'interrupt'),'Mission interrompue. L\'équipe Side by Side est prévenue.'):(String(desc||'').trim().length<10?{err:'Décrivez le problème (10 caractères minimum).'}:ok(M(b,'dispute',{reason:motif,description:desc}),'Dossier ouvert. L\'équipe Side by Side vous répond sous 48 h.'));
-  api.pay=(b)=>{liveCall('create-payment',{booking_id:b.id,gift_code:b.giftCode||null}).then(r=>{if(r.paid){toast('Réservation payée.');return liveLoad()}return livePayWith(r.client_secret,r.amount,'Réservation '+b.ref)}).catch(e=>toast(e.message,true));return{ok:1,msg:'Préparation du paiement…'}};
+  api.pay=(b)=>{liveCall('create-payment',{booking_id:b.id,gift_code:b.giftCode||null}).then(r=>{if(r.paid){toast('Réservation payée.');return liveLoad()}return livePayWith(r.client_secret,r.amount,'Réservation '+b.ref)}).catch(e=>tr_(e.message,true));return{ok:1,msg:'Préparation du paiement…'}};
   api.review=(b,who,stars,text)=>{const st=+stars;if(!(st>=1&&st<=5))return{err:'Choisissez une note de 1 à 5.'};
     SB.from('reviews').insert({booking_id:b.id,author_id:ME.id,target_id:realOf(who==='client'?b.companionId:b.clientId),stars:st,body:String(text||'').trim().slice(0,1000)||null}).then(({error})=>{toast(error?(/duplicate|unique/.test(error.message)?'Vous avez déjà donné votre avis.':'Avis impossible pour cette réservation.'):'Merci. Les deux avis sont publiés quand chacun a donné le sien.',!!error);if(!error)liveLoad()});return{ok:1,msg:'Envoi…'}};
   const _ch=liveSubscribe;liveSubscribe=()=>{const first=!LIVE_SUB;_ch();if(first&&LIVE_SUB&&SB.channel)SB.channel('sbs-n-'+ME.id).on('postgres_changes',{event:'INSERT',schema:'public',table:'notifications',filter:'user_id=eq.'+ME.id},p=>{const n=p.new;S.notifs.unshift({id:n.id,to:S.role,text:n.body,t:Date.parse(n.created_at),read:false,kind:n.kind,bid:n.booking_id});if(n.kind==='sos'&&S.role==='admin')toast(n.body,true);else toast(n.body);if(S.role==='admin'&&S.adminOk)liveAdminLoad();else render()}).subscribe()};
@@ -2360,15 +2361,15 @@ function liveClick2(a,el){
   if(a==='live-adm-comp'){admDo({action:'companion_review',companion_id:el.dataset.id,approve:true,tier:el.dataset.v},'Profil validé et visible des clients.');return true}
   if(a==='live-adm-suspend'){open('live-reason',{kind:'suspend',id:el.dataset.id});return true}
   if(a==='notifs'){const ids=S.notifs.filter(n=>!n.read&&n.id).map(n=>n.id);if(ids.length)SB.from('notifications').update({read_at:new Date().toISOString()}).in('id',ids).then(()=>{});return false}
-  if(a==='live-export'){liveCall('account',{action:'export'}).then(d=>{open('live-export',{json:JSON.stringify(d,null,2)});render()}).catch(e=>toast(e.message,true));return true}
-  if(a==='live-copy'){const t=S.sheet&&S.sheet.json||'';(navigator.clipboard?navigator.clipboard.writeText(t):Promise.reject()).then(()=>toast('Copié.')).catch(()=>{const x=document.getElementById('lx-json');if(x){x.focus();x.select()}toast('Sélectionnez le texte pour le copier.')});return true}
+  if(a==='live-export'){liveCall('account',{action:'export'}).then(d=>{open('live-export',{json:JSON.stringify(d,null,2)});render()}).catch(e=>tr_(e.message,true));return true}
+  if(a==='live-copy'){const t=S.sheet&&S.sheet.json||'';(navigator.clipboard?navigator.clipboard.writeText(t):Promise.reject()).then(()=>tr_('Copié.')).catch(()=>{const x=document.getElementById('lx-json');if(x){x.focus();x.select()}toast('Sélectionnez le texte pour le copier.')});return true}
   if(a==='live-delete'){open('live-delete');return true}
   if(a==='livepay-go'){livePayConfirm();return true}
   if(a==='sos-report'||a==='sos-contact'||a==='sos-loc'){const id=liveSosTarget(el),b=id&&S.bookings.find(x=>x.id===id);
     const send=(kind,pos)=>liveCall('sos',{booking_id:b?b.id:null,kind,...(pos||{})});
-    if(a==='sos-report'){send('report').then(()=>toast('Signalement prioritaire transmis à Side by Side.')).catch(e=>toast(e.message,true));return true}
+    if(a==='sos-report'){send('report').then(()=>tr_('Signalement prioritaire transmis à Side by Side.')).catch(e=>tr_(e.message,true));return true}
     if(a==='sos-loc'){if(!navigator.geolocation){toast('Position indisponible sur cet appareil.',true);return true}
-      navigator.geolocation.getCurrentPosition(p=>send('location',{latitude:p.coords.latitude,longitude:p.coords.longitude}).then(()=>toast('Position transmise à l\'équipe Side by Side.')).catch(e=>toast(e.message,true)),()=>toast('Autorisez l\'accès à la position dans les réglages du téléphone.',true),{enableHighAccuracy:true,timeout:15000});return true}
+      navigator.geolocation.getCurrentPosition(p=>send('location',{latitude:p.coords.latitude,longitude:p.coords.longitude}).then(()=>tr_('Position transmise à l\'équipe Side by Side.')).catch(e=>tr_(e.message,true)),()=>tr_('Autorisez l\'accès à la position dans les réglages du téléphone.',true),{enableHighAccuracy:true,timeout:15000});return true}
     const tc=(ME&&ME.trusted_contact)||'';send('contact').catch(()=>{});
     if(!tc){toast('Ajoutez d\'abord un contact de confiance dans Compte.',true);return true}
     const num=(tc.match(/\+?\d[\d\s.]{8,}/)||[''])[0].replace(/[\s.]/g,'');
@@ -2386,7 +2387,7 @@ function liveSubmit2(k,f,d){
     if(s.kind==='id')admDo({action:'identity_review',check_id:s.id,approve:false,reason:r},'Pièce refusée, le membre est prévenu.');else admDo({action:'suspend',user_id:s.id,suspended:true,reason:r},'Compte suspendu.');return true}
   if(k==='live-id'){liveIdSubmit(f);return 'stop'}
   if(k==='live-delete'){if(String(d.confirm||'').trim()!=='SUPPRIMER'){toast('Écrivez SUPPRIMER pour confirmer.',true);return 'stop'}
-    liveCall('account',{action:'delete',confirm:'SUPPRIMER'}).then(()=>{S.sheet=null;toast('Compte supprimé.');SB.auth.signOut()}).catch(e=>toast(e.message,true));return 'stop'}
+    liveCall('account',{action:'delete',confirm:'SUPPRIMER'}).then(()=>{S.sheet=null;toast('Compte supprimé.');SB.auth.signOut()}).catch(e=>tr_(e.message,true));return 'stop'}
   return false}
 function liveSheets(s){
   if(s.type==='live-reason')return `${head(s.kind==='id'?'Refuser la pièce d\'identité':'Suspendre le compte','Le membre est prévenu et peut contester.')}<form class="stack" data-form="live-reason"><div class="field"><label for="lr-r">Motif</label><textarea id="lr-r" name="reason" rows="3"></textarea></div><button class="btn ${s.kind==='id'?'pri':'bad'} full">Confirmer</button></form>`;
