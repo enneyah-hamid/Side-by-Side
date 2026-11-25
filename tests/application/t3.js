@@ -40,7 +40,7 @@ await p.setInputFiles('#id-doc',{name:'cni.png',mimeType:'image/png',buffer:png}
 await p.click('form[data-form="live-id"] button.pri');await p.waitForTimeout(900);
 const up=await p.evaluate(()=>({u:__db.uploads,c:__db.identity_checks.length}));
 ck('U11','Pièce et selfie envoyés dans le dossier privé du membre',up.u.length===2&&up.u.every(x=>x.startsWith('uN/'))&&up.c===1,up.u.join(' , '));
-ck('U12','Carte RGPD (copie / suppression) présente',/Mes données personnelles/.test(await txt(p)));
+ck('U12','Rubrique confidentialité (export / suppression) présente',/Confidentialité et suppression de compte/i.test(await txt(p))&&/Exporter mes données/.test(await txt(p)));
 // 4. Administrateur : MFA obligatoire
 p=await page();await login(p,'admin@test.fr');await p.waitForTimeout(600);t=await txt(p);
 ck('A01','Admin : écran de double authentification avec QR code avant tout accès',/Double authentification/.test(t)&&!!(await p.$('img[alt^="QR"]'))&&!/Tableau de bord/.test(t));

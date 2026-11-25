@@ -17,8 +17,8 @@ jobs:
     steps:
       - uses: actions/checkout@v4
         with: { ref: "${{ github.event.workflow_run.head_sha || github.sha }}" }
-      - uses: supabase/setup-cli@v1
-        with: { version: latest }
+      - uses: actions/setup-node@v4
+        with: { node-version: 22 }
       - name: Déployer
         working-directory: serveur
         run: |
@@ -26,5 +26,5 @@ jobs:
           for f in supabase/functions/*/; do
             n=$(basename "$f"); [ "$n" = "_shared" ] && continue
             case "$n" in stripe-webhook|release-payout|sweeper|monthly-invoice) flag="--no-verify-jwt";; *) flag="";; esac
-            echo "→ $n $flag"; supabase functions deploy "$n" --project-ref "$PROJECT" --use-api $flag
+            echo "→ $n $flag"; npx -y supabase@2 functions deploy "$n" --project-ref "$PROJECT" --use-api $flag
           done

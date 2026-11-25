@@ -1,0 +1,27 @@
+insert into auth.users(id,raw_user_meta_data) values ('00000000-0000-0000-0000-0000000000a1','{"first_name":"Sophie","last_name":"B","birth_date":"1980-01-01"}'),('00000000-0000-0000-0000-0000000000b1','{"first_name":"Camille","last_name":"D","birth_date":"1980-01-01","role":"companion"}');
+update profiles set identity_verified=true;
+update companions set travel_buffer_min=60;
+insert into auth.users(id,raw_user_meta_data) select '00000000-0000-0000-0000-0000000000c1', json_build_object('first_name','Léa','last_name','F','birth_date','1990-01-01','referral_code',(select lower(referral_code) from profiles where id='00000000-0000-0000-0000-0000000000a1'))::jsonb;
+select 'P1 filleul rattaché au parrain : ' || count(*) from referrals where referee_id='00000000-0000-0000-0000-0000000000c1' and sponsor_id='00000000-0000-0000-0000-0000000000a1';
+update profiles set identity_verified=true where id='00000000-0000-0000-0000-0000000000c1';
+create or replace function t_b(cl text, st timestamptz, buf int default 60) returns text language plpgsql as $$ begin insert into bookings(client_id, companion_id, category, starts_at, hours, place, amount_service, amount_client_fee, amount_vat, amount_total, amount_commission, amount_payout, buffer_min, beneficiary_name, beneficiary_phone, beneficiary_needs, beneficiary_info)
+ values (cl::uuid,'00000000-0000-0000-0000-0000000000b1','shopping', st, 2, 'Paris', 70, 10.5, 2.1, 82.6, 14, 56, buf, 'Mamie', '0612345678', '{mobilite}', 'Diabète'); return 'inséré'; exception when others then return 'refusé'; end $$;
+select 'B1 réservation 10h-12h (délai 60 min) : ' || t_b('00000000-0000-0000-0000-0000000000c1','2030-02-01 10:00+00');
+select 'B2 réservation 12h30 (dans le délai de déplacement) : ' || t_b('00000000-0000-0000-0000-0000000000a1','2030-02-01 12:30+00');
+select 'B3 réservation 13h00 (après le délai) : ' || t_b('00000000-0000-0000-0000-0000000000a1','2030-02-01 13:00+00');
+select 'B4 réservation 08h30-10h30 qui chevauche : ' || t_b('00000000-0000-0000-0000-0000000000a1','2030-02-01 08:30+00', 0);
+update bookings set status='cloturee' where starts_at='2030-02-01 10:00+00';
+select 'D1 données du proche après clôture : tel=' || coalesce(beneficiary_phone,'effacé') || ' besoins=' || coalesce(nullif(array_to_string(beneficiary_needs,','),''),'effacés') || ' santé=' || coalesce(beneficiary_info,'effacée') || ' nom=' || beneficiary_name from bookings where starts_at='2030-02-01 10:00+00';
+select 'P2 récompense du parrain après 1re mission clôturée : ' || count(*) || ' crédit(s) de ' || coalesce(max(amount),0) || ' €' from gift_cards where owner_id='00000000-0000-0000-0000-0000000000a1' and is_referral_credit;
+update bookings set status='cloturee' where starts_at='2030-02-01 13:00+00';
+insert into bookings(client_id, companion_id, category, starts_at, hours, place, amount_service, amount_client_fee, amount_vat, amount_total, amount_commission, amount_payout, status) values ('00000000-0000-0000-0000-0000000000c1','00000000-0000-0000-0000-0000000000b1','shopping','2030-03-01 10:00+00',2,'Paris',70,10.5,2.1,82.6,14,56,'terminee');
+update bookings set status='cloturee' where starts_at='2030-03-01 10:00+00';
+select 'P3 seconde mission du filleul : toujours ' || count(*) || ' crédit (pas de double récompense)' from gift_cards where owner_id='00000000-0000-0000-0000-0000000000a1' and is_referral_credit;
+insert into messages(booking_id,sender_id,body) select id,'00000000-0000-0000-0000-0000000000a1','Bonjour, à demain !' from bookings where starts_at='2030-02-01 13:00+00';
+insert into messages(booking_id,sender_id,body) select id,'00000000-0000-0000-0000-0000000000a1','Je serai là à l''heure.' from bookings where starts_at='2030-02-01 13:00+00';
+select 'N1 2 messages en 1 min → notifications du destinataire : ' || count(*) from notifications where user_id='00000000-0000-0000-0000-0000000000b1' and kind='message';
+set role authenticated; select set_config('request.jwt.claim.sub','00000000-0000-0000-0000-0000000000b1',false);
+update companions set legal_status='micro', tax_id='12345678900011' where id='00000000-0000-0000-0000-0000000000b1';
+do $$ begin update companions set admin_status='valide' where id=auth.uid(); raise notice 'A1 auto-validation du dossier administratif : AUTORISÉE (anomalie)'; exception when others then raise notice 'A1 auto-validation du dossier administratif : refusée'; end $$;
+reset role;
+select 'A2 dossier transmis par l''accompagnateur → statut : ' || admin_status from companions where id='00000000-0000-0000-0000-0000000000b1';
