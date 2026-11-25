@@ -316,20 +316,20 @@ create index if not exists audit_log_created_idx on audit_log(created_at desc);
 -- ---------------------------------------------------------------------
 create or replace function private.alert_admins() returns trigger
 language plpgsql security definer set search_path = public as $$
-declare msg text; ref text;
+declare msg text; ref text; bid uuid; k text;
 begin
   if tg_table_name = 'safety_alerts' then
-    select b.ref into ref from bookings b where b.id = new.booking_id;
+    bid := new.booking_id; k := 'sos';
+    select b.ref into ref from bookings b where b.id = bid;
     msg := 'ALERTE ' || upper(new.kind) || coalesce(' sur ' || ref, '') ||
            coalesce(' · position ' || round(new.latitude::numeric, 5) || ', ' || round(new.longitude::numeric, 5), '') || ' : intervenir en priorité.';
     insert into audit_log (actor_id, action, ref) values (new.user_id, 'Alerte de sécurité : ' || new.kind, ref);
   else
+    bid := null; k := 'admin';
     msg := 'Nouvelle pièce d''identité à vérifier.';
   end if;
   insert into notifications (user_id, booking_id, kind, body)
-  select p.id, case when tg_table_name = 'safety_alerts' then new.booking_id end,
-         case when tg_table_name = 'safety_alerts' then 'sos' else 'admin' end, msg
-  from profiles p where p.role = 'admin' and not p.suspended;
+  select p.id, bid, k, msg from profiles p where p.role = 'admin' and not p.suspended;
   return new;
 end $$;
 revoke execute on function private.alert_admins() from public, anon, authenticated;
