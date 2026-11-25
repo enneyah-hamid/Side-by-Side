@@ -1,0 +1,13 @@
+{
+  "appId": "fr.zyntell.sidebyside",
+  "appName": "Side by Side",
+  "webDir": "www",
+  "android": { "allowMixedContent": false },
+  "ios": { "contentInset": "never" },
+  "server": { "androidScheme": "https" },
+  "plugins": {
+    "SplashScreen": { "launchShowDuration": 1200, "backgroundColor": "#060D1F", "showSpinner": false },
+    "StatusBar": { "style": "DARK", "backgroundColor": "#060D1F" },
+    "PushNotifications": { "presentationOptions": ["badge", "sound", "alert"] }
+  }
+}

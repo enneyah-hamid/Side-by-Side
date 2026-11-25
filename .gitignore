@@ -1,0 +1,7 @@
+node_modules/
+www/vendor/
+www/index.html
+android/app/build/
+ios/App/Pods/
+*.keystore
+.env

@@ -1,0 +1,29 @@
+{
+  "name": "side-by-side",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Side by Side — application mobile (iOS et Android) éditée par Zyntell",
+  "scripts": {
+    "build": "node scripts/build.mjs",
+    "android": "npm run build && npx cap sync android && npx cap open android",
+    "ios": "npm run build && npx cap sync ios && npx cap open ios",
+    "assets": "npx @capacitor/assets generate --iconBackgroundColor '#060D1F' --splashBackgroundColor '#060D1F'"
+  },
+  "dependencies": {
+    "@aparajita/capacitor-biometric-auth": "^8.0.0",
+    "@capacitor/android": "^7.0.0",
+    "@capacitor/app": "^7.0.0",
+    "@capacitor/camera": "^7.0.0",
+    "@capacitor/core": "^7.0.0",
+    "@capacitor/geolocation": "^7.0.0",
+    "@capacitor/ios": "^7.0.0",
+    "@capacitor/push-notifications": "^7.0.0",
+    "@capacitor/splash-screen": "^7.0.0",
+    "@capacitor/status-bar": "^7.0.0",
+    "@supabase/supabase-js": "2.45.4"
+  },
+  "devDependencies": {
+    "@capacitor/assets": "^3.0.5",
+    "@capacitor/cli": "^7.0.0"
+  }
+}

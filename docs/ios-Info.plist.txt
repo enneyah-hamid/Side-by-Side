@@ -1,0 +1,12 @@
+À ajouter dans ios/App/App/Info.plist (Xcode > App > Info), en français :
+
+<key>NSCameraUsageDescription</key>
+<string>Side by Side utilise l'appareil photo pour votre photo de référence et la vérification de votre identité.</string>
+<key>NSPhotoLibraryUsageDescription</key>
+<string>Side by Side vous permet d'ajouter des photos de profil depuis votre galerie.</string>
+<key>NSLocationWhenInUseUsageDescription</key>
+<string>Votre position est partagée avec votre contact de confiance et l'équipe Side by Side uniquement quand vous déclenchez le bouton SOS.</string>
+<key>NSFaceIDUsageDescription</key>
+<string>Face ID vous permet d'ouvrir Side by Side sans retaper votre mot de passe.</string>
+<key>CFBundleDevelopmentRegion</key>
+<string>fr</string>

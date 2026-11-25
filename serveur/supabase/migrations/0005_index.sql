@@ -1,0 +1,26 @@
+-- Side by Side — 0005 : index sur les clés étrangères (performances)
+create index if not exists audit_log_actor_idx on audit_log(actor_id);
+create index if not exists booking_changes_booking_idx on booking_changes(booking_id);
+create index if not exists booking_events_actor_idx on booking_events(actor);
+create index if not exists booking_events_booking_idx on booking_events(booking_id);
+create index if not exists booking_reports_companion_idx on booking_reports(companion_id);
+create index if not exists bookings_business_idx on bookings(business_id);
+create index if not exists bookings_experience_idx on bookings(experience_id);
+create index if not exists companion_photos_companion_idx on companion_photos(companion_id);
+create index if not exists disputes_booking_idx on disputes(booking_id);
+create index if not exists disputes_opened_by_idx on disputes(opened_by);
+create index if not exists experiences_companion_idx on experiences(companion_id);
+create index if not exists gift_cards_buyer_idx on gift_cards(buyer_id);
+create index if not exists gift_cards_experience_idx on gift_cards(experience_id);
+create index if not exists gift_cards_owner_idx on gift_cards(owner_id);
+create index if not exists invoices_booking_idx on invoices(booking_id);
+create index if not exists invoices_recipient_idx on invoices(recipient_id);
+create index if not exists ledger_booking_idx on ledger(booking_id);
+create index if not exists messages_booking_idx on messages(booking_id);
+create index if not exists messages_sender_idx on messages(sender_id);
+create index if not exists profiles_referred_by_idx on profiles(referred_by);
+create index if not exists referrals_sponsor_idx on referrals(sponsor_id);
+create index if not exists reviews_author_idx on reviews(author_id);
+create index if not exists reviews_target_idx on reviews(target_id);
+create index if not exists safety_alerts_booking_idx on safety_alerts(booking_id);
+create index if not exists safety_alerts_user_idx on safety_alerts(user_id);
