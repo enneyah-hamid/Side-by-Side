@@ -2230,7 +2230,7 @@ function liveBoot(){if(!LIVE)return;
   api.refuse=b=>{if(b.status!=='en_attente')return{err:'Demande déjà traitée.'};liveDo(liveCall('booking-action',{booking_id:b.id,action:'refuse'}),'Demande refusée.');b.status='refusee';return{ok:1,msg:'Envoi…'}};
   const _sign=signMission;signMission=(b,me)=>{_sign(b,me);if(me==='client')liveDo(liveCall('booking-action',{booking_id:b.id,action:'sign'}))};
   api.pay=()=>({err:'Le paiement en ligne sera disponible très bientôt.'});
-  const send=api.send.bind(api);api.send=(b,who,text)=>{const r=send(b,who,text);if(r&&r.err)return r;SB.from('messages').insert({booking_id:b.id,sender_id:ME.id,body:text.trim()}).then(({error})=>{if(error)toast('Message non envoyé. Réessayez.',true)});return r};
+  const send=api.send.bind(api);api.send=(b,who,text)=>{const r=send(b,who,text);if(r&&r.err)return r;const mine=(S.msgs[b.id]||[]).filter(m=>m.from===who).pop();SB.from('messages').insert({booking_id:b.id,sender_id:ME.id,body:(mine?mine.text:text).trim()}).then(({error})=>{if(error)toast('Message non envoyé. Réessayez.',true)});return r};
   api.cancel=(b,who)=>{if(!['en_attente','acceptee','confirmee'].includes(b.status))return{err:'Annulation impossible à ce stade.'};liveDo(liveCall('refund-booking',{booking_id:b.id}),'Réservation annulée.');b.status='annulee';return{ok:1,msg:'Annulation…'}};
   SB.auth.getSession().then(({data})=>{if(data&&data.session)liveLoad();else render()});
   SB.auth.onAuthStateChange((ev)=>{if(ev==='SIGNED_OUT'){ME=null;S.role=null;S.adminOk=false;S.liveMfa=null;LIVE_ADM.data=null;render()}});

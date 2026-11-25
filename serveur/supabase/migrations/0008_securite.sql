@@ -337,3 +337,29 @@ drop trigger if exists trg_alert_sos on safety_alerts;
 create trigger trg_alert_sos after insert on safety_alerts for each row execute function private.alert_admins();
 drop trigger if exists trg_alert_identity on identity_checks;
 create trigger trg_alert_identity after insert on identity_checks for each row execute function private.alert_admins();
+
+-- ---------------------------------------------------------------------
+-- 13. Messagerie : la protection anti-contournement s'applique aussi côté serveur
+--     (avant : en mode connecté, le message original non masqué était enregistré)
+-- ---------------------------------------------------------------------
+create or replace function private.filter_message() returns trigger
+language plpgsql security definer set search_path = public as $$
+declare b bookings; clean text;
+begin
+  if new.body is null then return new; end if;
+  if new.body ~* '\m(sexe|sexuel(le)?s?|intimes?|massages?|escort\w*|c[aâ]lins?|passer la nuit|nuit ensemble|chambre d''h[oô]tel)\M' then
+    select * into b from bookings where id = new.booking_id;
+    insert into audit_log (actor_id, action, ref) values (new.sender_id, 'Message bloqué (sollicitation interdite)', b.ref);
+    raise exception 'Message bloqué : les sollicitations à caractère intime sont interdites';
+  end if;
+  clean := regexp_replace(new.body, '(\+?\d[\d .-]{7,}\d)|([A-Za-z0-9._-]+@[A-Za-z0-9-]+\.[A-Za-z0-9.]{2,})|\m(iban|paypal|lydia|wero|esp[eè]ces|cash|liquide|virement|whatsapp|telegram|snapchat)\M', '[masqué]', 'gi');
+  if clean <> new.body then
+    select * into b from bookings where id = new.booking_id;
+    insert into audit_log (actor_id, action, ref) values (new.sender_id, 'Coordonnées ou paiement hors plateforme masqués', b.ref);
+    new.body := clean;
+  end if;
+  return new;
+end $$;
+revoke execute on function private.filter_message() from public, anon, authenticated;
+drop trigger if exists trg_filter_message on messages;
+create trigger trg_filter_message before insert on messages for each row execute function private.filter_message();
