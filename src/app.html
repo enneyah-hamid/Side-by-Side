@@ -2319,7 +2319,9 @@ function pdfBytes(title,text){const W1252={'€':128,'‚':130,'„':132,'…':1
 function pdfSave(name,bytes){const C=window.Capacitor,P=C&&C.Plugins;
   if(C&&C.isNativePlatform&&C.isNativePlatform()&&P&&P.Filesystem&&P.Share){let bin='';bytes.forEach(x=>bin+=String.fromCharCode(x));
     P.Filesystem.writeFile({path:name,data:btoa(bin),directory:'CACHE'}).then(r=>P.Share.share({title:name,url:r.uri})).catch(()=>toast('Enregistrement du PDF impossible.',true));return}
-  const url=URL.createObjectURL(new Blob([bytes],{type:'application/pdf'})),a=document.createElement('a');a.href=url;a.download=name;document.body.appendChild(a);a.click();setTimeout(()=>{URL.revokeObjectURL(url);a.remove()},5000)}
+  const blob=new Blob([bytes],{type:'application/pdf'}),direct=()=>{const url=URL.createObjectURL(blob),a=document.createElement('a');a.href=url;a.download=name;document.body.appendChild(a);a.click();setTimeout(()=>{URL.revokeObjectURL(url);a.remove()},5000)};
+  if(window.claude&&window.claude.use){window.claude.use('downloads').then(d=>d?d.save({filename:name,data:blob}).catch(()=>toast('Téléchargement annulé.')):direct()).catch(direct);return}   // page publiée sur claude.ai
+  direct()}
 function sheetPdf(name){const el=document.querySelector('.sheet.full')||document.querySelector('.sheet');if(!el)return;
   const hide=[...el.querySelectorAll('button,input,select,textarea,.pdfbar,label.row')];hide.forEach(x=>{x.dataset.pd=x.style.display;x.style.display='none'});
   const text=el.innerText;hide.forEach(x=>{x.style.display=x.dataset.pd||'';delete x.dataset.pd});
