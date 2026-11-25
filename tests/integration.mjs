@@ -87,13 +87,6 @@ async function confirmedBooking(client, comp, dayN, extra = {}) {
   const minor = await svc.auth.admin.createUser({ email: "mineur@test.fr", password: "Test-Passw0rd!", email_confirm: true, user_metadata: { first_name: "Jeune", last_name: "T", birth_date: at(-16 * 365 * 24 * H).slice(0, 10), role: "client" } });
   check("A02", "Inscription d'une personne de moins de 18 ans refusée par la base", !!minor.error);
 
-  // ---------- CORS ----------
-  for (const [o, want] of [["https://localhost", true], ["capacitor://localhost", true], ["https://site-pirate.example", false]]) {
-    const r = await fetch(`${URL}/functions/v1/create-booking`, { method: "OPTIONS", headers: { Origin: o, "Access-Control-Request-Method": "POST" } });
-    const got = r.headers.get("access-control-allow-origin");
-    check("C01", `CORS pour ${o} ${want ? "autorisé" : "refusé"}`, want ? got === o : !got, `en-tête : ${got ?? "absent"}`);
-  }
-
   // ---------- Réservation ----------
   const B = (body, u = client) => call(u, "create-booking", { companion_id: comp.id, category: "shopping", hours: 2, place: "Musée d'Orsay, Paris", ...body });
   let r = await B({ starts_at: at(3 * H) });
@@ -177,9 +170,13 @@ async function confirmedBooking(client, comp, dayN, extra = {}) {
   check("G03", "Carte appartenant à quelqu'un d'autre refusée", r.status === 400, r.error);
   const brute = []; for (let i = 0; i < 12; i++) brute.push(await call(client2, "create-payment", { booking_id: g3.booking.id, gift_code: `FAUX${i}` }));
   check("G04", "Essais de codes cadeaux limités (10 par heure)", brute.some((x) => x.status === 429), `${brute.filter((x) => x.status === 429).length} essai(s) bloqué(s)`);
-  r = await call(client, "refund-booking", { booking_id: g1.booking.id });
+  const holder = (await svc.from("gift_holds").select("booking_id, amount").eq("code", "CADEAU30").eq("status", "held").single()).data;
+  r = await call(client, "refund-booking", { booking_id: holder.booking_id });
   const after = (await svc.from("gift_cards").select("balance").eq("code", "CADEAU30").single()).data;
-  check("G05", "Annulation avant paiement → solde de la carte rendu", Number(after.balance) === Number(holds[0].amount) || Number(after.balance) === Number(holds[1]?.amount ?? 0), `solde ${after.balance} €`);
+  check("G05", "Annulation avant paiement → solde de la carte rendu", r.ok && Number(after.balance) === Number(holder.amount), `solde ${after.balance} € (réservé ${holder.amount} €)`);
+  r = await call(client, "refund-booking", { booking_id: holder.booking_id });
+  const after2 = (await svc.from("gift_cards").select("balance").eq("code", "CADEAU30").single()).data;
+  check("G06", "Seconde annulation : la carte n'est pas créditée deux fois", r.status === 409 && Number(after2.balance) === Number(holder.amount));
 
   // ---------- Remboursement ----------
   const rf = await Promise.all(Array.from({ length: 5 }, () => call(client, "refund-booking", { booking_id: b1.id })));

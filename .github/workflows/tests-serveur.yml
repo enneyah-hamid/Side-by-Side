@@ -16,6 +16,9 @@ jobs:
         working-directory: serveur
         run: |
           [ -f supabase/config.toml ] || supabase init --force
+          # Double authentification TOTP (activée par défaut sur les projets Supabase hébergés)
+          sed -i '/^\[auth.mfa.totp\]/,/^\[/ s/enroll_enabled = false/enroll_enabled = true/; /^\[auth.mfa.totp\]/,/^\[/ s/verify_enabled = false/verify_enabled = true/' supabase/config.toml
+          grep -A3 '^\[auth.mfa.totp\]' supabase/config.toml
           supabase start -x studio,imgproxy,vector,logflare,supavisor,postgres-meta,mailpit
           supabase status -o env > ../tests/.sb.env
       - name: Démarrer le serveur Stripe simulé et les fonctions serveur
@@ -36,10 +39,17 @@ jobs:
       - name: Lancer les tests
         working-directory: tests
         run: |
+          set -o pipefail
           set -a; . ./.sb.env; set +a
           npm init -y >/dev/null && npm i --silent @supabase/supabase-js@2.45.4 stripe@14.25.0
           SB_URL=$API_URL SB_ANON=$ANON_KEY SB_SERVICE=$SERVICE_ROLE_KEY INTERNAL_KEY=cle-interne-de-test-tres-longue-123456 STRIPE_WEBHOOK_SECRET=whsec_test_integration_side_by_side \
             node integration.mjs | tee resultats.txt
+      - uses: denoland/setup-deno@v2
+        if: always()
+        with: { deno-version: v2.x }
+      - name: Test des origines autorisées (CORS)
+        if: always()
+        run: SUPABASE_URL=http://localhost SUPABASE_SERVICE_ROLE_KEY=x APP_ORIGIN=https://sidebyside.example deno test --allow-env --allow-net --allow-read --allow-import tests/cors_test.ts 2>&1 | tee tests/resultats-cors.txt
       - name: Résumé
         if: always()
         run: |

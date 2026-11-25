@@ -929,7 +929,8 @@ function welcome(){return `<main class="login"><div class="wrap login-in">
 <div class="login-foot"><button class="linkbtn" data-a="role" data-v="admin">Accès administrateur Side by Side</button></div>
 </div></main>`}
 
-function mfa(){if(S.admReset)return admResetHtml();return `<section class="section" style="max-width:420px;margin:0 auto"><h2>Double authentification</h2><p class="muted">L'espace administrateur exige un second facteur à chaque connexion.</p>
+function mfa(){if(S.admReset)return admResetHtml();if(!adminHash())return `<section class="section" style="max-width:420px;margin:0 auto"><h2>Créer le mot de passe administrateur</h2><p class="muted">Aucun code d'accès n'est inscrit dans l'application. Choisissez votre mot de passe administrateur personnel pour cet appareil.</p>
+<form class="card stack" data-form="adm-setup"><div class="field"><label for="as-new">Mot de passe administrateur</label><input id="as-new" name="nw" type="password" autocomplete="new-password"></div><div class="field"><label for="as-new2">Confirmez le mot de passe</label><input id="as-new2" name="nw2" type="password" autocomplete="new-password"></div><p class="xs muted">12 caractères minimum, avec au moins une majuscule, une minuscule, un chiffre et un caractère spécial (! ? @ # $ % & * …).</p><p class="note t-bad sm" id="as-err" hidden></p><button class="btn pri full">Enregistrer et me connecter</button></form></section>`;return `<section class="section" style="max-width:420px;margin:0 auto"><h2>Double authentification</h2><p class="muted">L'espace administrateur exige un second facteur à chaque connexion.</p>
 <form class="card stack" data-form="mfa"><div class="field"><label for="mfa-code">${adminHash()?'Mot de passe administrateur':'Code à 6 chiffres de l\'application d\'authentification'}</label><input id="mfa-code" name="code" ${adminHash()?'type="password" autocomplete="current-password"':'inputmode="numeric" autocomplete="one-time-code" maxlength="7"'} placeholder="••••••"></div>
 <button class="btn pri full">Valider</button><p class="xs muted">5 essais maximum.</p>${adminHash()?'<button type="button" class="btn ghost" data-a="adm-forgot">Mot de passe oublié ?</button>':''}</form></section>`}
 
@@ -1478,6 +1479,8 @@ function extSubmit(k,f,fd,d,b,me){
   {const rl=liveSubmit(k,f,d);if(rl)return rl}
   if(k==='admcode')return admCodeSubmit(d);
   if(k==='adm-reset-sms'||k==='adm-reset-new')return admResetSubmit(k,d);
+  if(k==='adm-setup'){const e=m=>{const p=document.getElementById('as-err');p.textContent=tr(m);p.hidden=false;return 'stop'};if(adminHash())return true;const pe=pwRuleErr(d.nw,d.nw2);if(pe)return e(pe);
+    sha256(String(d.nw)).then(h=>{try{localStorage.setItem(ADM_KEY,h)}catch(x){e('Impossible d\'enregistrer le mot de passe sur cet appareil.');return}S.adminOk=true;S.mfaTries=0;log('Administrateur Side by Side','Mot de passe administrateur créé','—');toast('Mot de passe enregistré.');render()});return 'stop'}
   {const r8=v23Submit(k,f,d);if(r8)return r8}
   {const r7=v22Submit(k,f,d);if(r7)return r7}
   {const r6=v20Submit(k,f,d);if(r6)return r6}
@@ -2053,8 +2056,8 @@ function admResetSubmit(k,d){const e=m=>{const p=document.getElementById('ar-err
 const ADM_KEY='sbs_admin_code_hash';
 async function sha256(t){const b=await crypto.subtle.digest('SHA-256',new TextEncoder().encode('sbs|'+t));return [...new Uint8Array(b)].map(x=>x.toString(16).padStart(2,'0')).join('')}
 function adminHash(){try{return localStorage.getItem(ADM_KEY)}catch(e){return null}}
-async function adminCheck(code){code=String(code||'');const h=adminHash();if(!h)return code.replace(/\D/g,'')==='246810';try{return (await sha256(code))===h}catch(e){return false}}
-function aAdminCode(){return `<form class="card stack" data-form="admcode"><h3>Accès administrateur</h3><p class="xs muted">${adminHash()?'Votre mot de passe personnel est actif sur cet appareil.':'Le code d\'origine est encore actif. Choisissez votre propre mot de passe.'}</p>
+async function adminCheck(code){code=String(code||'');const h=adminHash();if(!h)return false;try{return (await sha256(code))===h}catch(e){return false}}
+function aAdminCode(){return `<form class="card stack" data-form="admcode"><h3>Accès administrateur</h3><p class="xs muted">Votre mot de passe personnel est actif sur cet appareil.</p>
   <div class="field"><label for="ac-old">Code ou mot de passe actuel</label><input id="ac-old" name="old" type="password" autocomplete="current-password"></div>
   <div class="field"><label for="ac-new">Nouveau mot de passe</label><input id="ac-new" name="nw" type="password" autocomplete="new-password"></div><div class="field"><label for="ac-new2">Confirmez le nouveau mot de passe</label><input id="ac-new2" name="nw2" type="password" autocomplete="new-password"></div>
   <p class="xs muted">12 caractères minimum, avec au moins une majuscule, une minuscule, un chiffre et un caractère spécial (! ? @ # $ % & * …).</p>
@@ -2186,10 +2189,11 @@ async function liveLoad(){const {data:{user}}=await SB.auth.getUser();if(!user){
   if(dir.error||bk.error){toast('Connexion au serveur impossible. Vérifiez votre réseau.',true);return}
   S.companions=(dir.data||[]).map(adaptCompanion);
   if(p.role==='companion'&&!S.companions.some(c=>c.id==='c1'))S.companions.push(adaptCompanion({id:p.id,first_name:p.first_name,city:p.city,hourly_rate:35,languages:[],categories:[],work_days:[0,1,2,3,4,5,6]}));
-  S.bookings=(bk.data||[]).map(adaptBooking);
+  S.bookings=(bk.data||[]).map(r=>liveAdapt2(r.booking,adaptBooking(r)));
   const ids=S.bookings.map(b=>b.id);S.msgs={};
   if(ids.length){const {data:ms}=await SB.from('messages').select('*').in('booking_id',ids).order('created_at');(ms||[]).forEach(m=>{(S.msgs[m.booking_id]=S.msgs[m.booking_id]||[]).push({from:m.sender_id===p.id?(p.role==='companion'?'companion':'client'):(p.role==='companion'?'client':'companion'),text:m.body||'',t:Date.parse(m.created_at)})})}
-  if(!S.role){S.role=p.role==='companion'?'companion':'client';S.tab='home'}
+  if(!S.role){S.role=p.role==='admin'?'admin':p.role==='companion'?'companion':'client';S.tab=S.role==='admin'?'dashboard':'home'}
+  await liveExtra(p);
   liveSubscribe();render()}
 function liveSubscribe(){if(LIVE_SUB||!SB.channel)return;let t=null;const again=()=>{clearTimeout(t);t=setTimeout(()=>liveLoad(),600)};
   LIVE_SUB=SB.channel('sbs-'+ME.id).on('postgres_changes',{event:'*',schema:'public',table:'bookings'},again).on('postgres_changes',{event:'INSERT',schema:'public',table:'messages'},again).subscribe()}
@@ -2229,13 +2233,17 @@ function liveBoot(){if(!LIVE)return;
   const send=api.send.bind(api);api.send=(b,who,text)=>{const r=send(b,who,text);if(r&&r.err)return r;SB.from('messages').insert({booking_id:b.id,sender_id:ME.id,body:text.trim()}).then(({error})=>{if(error)toast('Message non envoyé. Réessayez.',true)});return r};
   api.cancel=(b,who)=>{if(!['en_attente','acceptee','confirmee'].includes(b.status))return{err:'Annulation impossible à ce stade.'};liveDo(liveCall('refund-booking',{booking_id:b.id}),'Réservation annulée.');b.status='annulee';return{ok:1,msg:'Annulation…'}};
   SB.auth.getSession().then(({data})=>{if(data&&data.session)liveLoad();else render()});
-  SB.auth.onAuthStateChange((ev)=>{if(ev==='SIGNED_OUT'){ME=null;S.role=null;render()}});}
+  SB.auth.onAuthStateChange((ev)=>{if(ev==='SIGNED_OUT'){ME=null;S.role=null;S.adminOk=false;S.liveMfa=null;LIVE_ADM.data=null;render()}});
+  liveBoot2();
+  EXTRA_SHEETS['live-reason']=EXTRA_SHEETS['live-export']=EXTRA_SHEETS['live-delete']=EXTRA_SHEETS.livepay=s=>liveSheets(s);}
 
 function liveClick(a,el){if(!LIVE)return false;
+  if(liveClick2(a,el))return true;
   if(a==='live-mode'){S.liveAuth={...(S.liveAuth||{}),mode:el.dataset.v};if(el.dataset.v==='login'){S.page=null}return true}
   if(a==='logout'){SB.auth.signOut();if(LIVE_SUB){SB.removeChannel(LIVE_SUB);LIVE_SUB=null}return false}
   return false}
 function liveSubmit(k,f,d){if(!LIVE)return false;
+  {const r2_=liveSubmit2(k,f,d);if(r2_)return r2_}
   if(k==='live-login'){const e=m=>{const p=document.getElementById('lv-err');p.textContent=tr(m);p.hidden=false;return 'stop'};
     if(!/^\S+@\S+\.\S{2,}$/.test(d.email||''))return e('Adresse e-mail invalide.');if(!d.pw)return e('Saisissez votre mot de passe.');
     S.liveAuth={mode:'login',email:d.email,busy:true};render();
@@ -2247,6 +2255,145 @@ function liveSubmit(k,f,d){if(!LIVE)return false;
 // Inscription : après les contrôles de la page, le compte est créé sur le serveur
 function liveSignup(v){const role=v.type==='companion'?'companion':v.type==='biz'?'business':'client';
   return SB.auth.signUp({email:v.email.trim(),password:v.pw,options:{data:{first_name:v.first.trim(),last_name:v.last.trim(),birth_date:v.dob,phone:(v.tel||'').replace(/[\s.-]/g,''),city:v.city,role,non_circumvention:!!v.nc}}})}
+
+/* ================= V2.5 — Mode connecté, lot 2 : mission, SOS, notifications, identité, RGPD, administration sécurisée =================
+   Tout ce qui suit ne s'exécute qu'en mode connecté (application native). La démo en ligne ne change pas. */
+const LIVE_ADM={data:null,busy:false};
+function liveNotifs(rows){S.notifs=(rows||[]).map(n=>({id:n.id,to:S.role,text:n.body,t:Date.parse(n.created_at),read:!!n.read_at,kind:n.kind,bid:n.booking_id}))}
+async function liveExtra(p){
+  const [nt,ids]=await Promise.all([SB.from('notifications').select('*').order('created_at',{ascending:false}).limit(60),SB.from('identity_checks').select('status,reason,created_at').order('created_at',{ascending:false}).limit(1)]);
+  liveNotifs(nt.data);S.liveId=(ids.data||[])[0]||null;
+  // Code de rencontre : demandé au serveur, jamais stocké dans la base lisible
+  await Promise.all(S.bookings.filter(b=>b.clientId==='u1'&&['confirmee','controle'].includes(b.status)).map(async b=>{try{const c=await liveCall('mission-action',{booking_id:b.id,action:'get_code'});b.code={value:c.code,distress:c.distress,expires:Date.parse(c.expires_at),attempts:0,used:false,locked:false}}catch(e){b.code=null}}));
+  S.bookings.forEach(b=>{if(b.companionId==='c1'&&!b.code)b.code={value:'',distress:'',expires:b.start+(b.hours+2)*H,attempts:0,used:false,locked:false}})}
+function liveAdapt2(x,b){b.presence={client:!!x.presence_client,companion:!!x.presence_companion};b.starts={client:x.start_client?Date.parse(x.start_client):null,companion:x.start_companion?Date.parse(x.start_companion):null};b.extMins=x.extra_minutes||0;return b}
+
+/* ---------- Administration : vrai compte admin + double authentification TOTP (Supabase Auth) ---------- */
+async function liveMfaInit(){S.liveMfa={step:'loading'};
+  try{const {data:a}=await SB.auth.mfa.getAuthenticatorAssuranceLevel();
+    if(a&&a.currentLevel==='aal2'){S.adminOk=true;S.liveMfa=null;liveAdminLoad();return}
+    const {data:f}=await SB.auth.mfa.listFactors();const ok=(f.totp||[]).find(x=>x.status==='verified');
+    if(ok){S.liveMfa={step:'verify',factorId:ok.id};render();return}
+    for(const x of (f.all||[]).filter(x=>x.status!=='verified'))await SB.auth.mfa.unenroll({factorId:x.id});
+    const {data:e,error}=await SB.auth.mfa.enroll({factorType:'totp',friendlyName:'Side by Side Admin'});if(error)throw error;
+    S.liveMfa={step:'enroll',factorId:e.id,qr:e.totp.qr_code,secret:e.totp.secret};render()}
+  catch(e){S.liveMfa={step:'error'};render()}}
+function liveMfaHtml(){const M=S.liveMfa;if(!M){setTimeout(liveMfaInit,0);return `<section class="section"><p class="muted">Vérification de la sécurité…</p></section>`}
+  if(M.step==='loading')return `<section class="section"><p class="muted">Vérification de la sécurité…</p></section>`;
+  if(M.step==='error')return `<section class="section" style="max-width:420px;margin:0 auto"><h2>Double authentification</h2><p class="note t-bad sm">Impossible de joindre le serveur de sécurité.</p><button class="btn pri full" data-a="live-mfa-retry">Réessayer</button></section>`;
+  return `<section class="section" style="max-width:420px;margin:0 auto"><h2>Double authentification</h2>${M.step==='enroll'?`<p class="muted">Première connexion : scannez ce QR code avec une application d'authentification (Google Authenticator, Microsoft Authenticator…).</p><div class="card" style="text-align:center"><img src="${M.qr}" alt="QR code de double authentification" style="width:200px;height:200px;background:#fff;padding:8px;border-radius:12px"><p class="xs muted">Ou saisissez la clé : <b class="sel num">${esc(M.secret)}</b></p></div>`:'<p class="muted">L\'espace administrateur exige un second facteur à chaque connexion.</p>'}
+  <form class="card stack" data-form="live-mfa"><div class="field"><label for="mfa-code">Code à 6 chiffres de l'application d'authentification</label><input id="mfa-code" name="code" inputmode="numeric" autocomplete="one-time-code" maxlength="6" placeholder="••••••"></div><p class="note t-bad sm" id="mfa-err" hidden></p><button class="btn pri full">Valider</button></form></section>`}
+async function liveAdminLoad(){LIVE_ADM.busy=true;render();try{LIVE_ADM.data=await liveCall('admin-action',{action:'overview'})}catch(e){toast(e.message,true)}LIVE_ADM.busy=false;render()}
+const admDo=(body,ok)=>liveCall('admin-action',body).then(()=>{toast(ok);liveAdminLoad()}).catch(e=>toast(e.message,true));
+const lfd=t=>t?fdt(Date.parse(t)):'—';
+function lAdmDash(){const D=LIVE_ADM.data;if(!D)return `<section class="section"><p class="muted">${LIVE_ADM.busy?'Chargement…':'Aucune donnée.'}</p><button class="btn" data-a="live-adm-refresh">Actualiser</button></section>`;
+  return `<section class="section"><div class="row"><h2 class="grow">Tableau de bord</h2><button class="btn ghost" data-a="live-adm-refresh">Actualiser</button></div>
+  <div class="kpis"><div class="card kpi"><span class="lbl">Alertes de sécurité (7 j)</span><span class="num">${D.alerts.length}</span></div><div class="card kpi"><span class="lbl">Identités à vérifier</span><span class="num">${D.identity.length}</span></div><div class="card kpi"><span class="lbl">Litiges ouverts</span><span class="num">${D.disputes.length}</span></div><div class="card kpi"><span class="lbl">Missions à vérifier</span><span class="num">${D.review.length}</span></div></div></section>
+  <section class="section"><h3>Alertes de sécurité</h3>${D.alerts.length?D.alerts.map(a=>`<div class="card stack"><div class="row"><b class="grow">${esc(a.kind)}</b><span class="pill t-bad">${a.bookings?esc(a.bookings.ref):'Hors réservation'}</span></div><span class="xs muted">${lfd(a.created_at)}${a.latitude!=null?` · position ${a.latitude.toFixed(5)}, ${a.longitude.toFixed(5)}`:''}</span>${a.latitude!=null?`<a class="btn ghost" href="https://www.openstreetmap.org/?mlat=${a.latitude}&mlon=${a.longitude}#map=17/${a.latitude}/${a.longitude}" target="_blank" rel="noopener">Voir sur la carte</a>`:''}<button class="btn bad" data-a="live-adm-suspend" data-id="${esc(a.user_id)}">Suspendre l'auteur de l'alerte</button></div>`).join(''):'<div class="empty">Aucune alerte.</div>'}</section>
+  <section class="section"><h3>Missions à vérifier</h3>${D.review.length?D.review.map(b=>`<div class="card row"><b class="grow">${esc(b.ref)}</b>${pill(b.status)}<span class="xs muted">${lfd(b.starts_at)}${b.payout_error?` · ${esc(b.payout_error)}`:''}</span></div>`).join(''):'<div class="empty">Rien à vérifier.</div>'}</section>`}
+function lAdmDisputes(){const D=LIVE_ADM.data;if(!D)return lAdmDash();
+  return `<section class="section"><h2>Litiges ouverts</h2>${D.disputes.length?D.disputes.map(d=>`<form class="card stack" data-form="live-adm-decide" data-id="${esc(d.id)}"><div class="row"><b class="grow">${esc(d.bookings?.ref||'')} · ${esc(d.reason)}</b><span class="pill ${Date.parse(d.deadline)<now()?'t-bad':'t-warn'}">Échéance ${lfd(d.deadline)}</span></div><p class="sm ugc">${esc(d.description)}</p><span class="xs muted">Montant payé ${eur(+(d.bookings?.amount_total||0))} · versement prévu ${eur(+(d.bookings?.amount_payout||0))}</span>
+    <div class="field"><label>Décision</label><select name="decision"><option value="payout">Prestation réalisée : verser l'accompagnateur</option><option value="refund">Rembourser le client</option></select></div><div class="field"><label>Remboursement du client (%)</label><input name="pct" type="number" min="0" max="100" value="100" inputmode="numeric"></div><div class="field"><label>Motif de la décision (obligatoire)</label><textarea name="note" rows="2"></textarea></div><button class="btn pri">Enregistrer la décision</button></form>`).join(''):'<div class="empty">Aucun litige ouvert.</div>'}</section>`}
+function lAdmUsers(){const D=LIVE_ADM.data;if(!D)return lAdmDash();
+  return `<section class="section"><h2>Pièces d'identité à vérifier</h2>${D.identity.length?D.identity.map(x=>`<div class="card stack"><div class="row"><b class="grow">${esc((x.profiles?.first_name||'')+' '+(x.profiles?.last_name||''))}</b><span class="pill t-warn">${x.profiles?.role==='companion'?'Accompagnateur':'Client'}</span></div><span class="xs muted">Né(e) le ${esc(x.profiles?.birth_date||'—')} · déposé le ${lfd(x.created_at)}</span>
+    <div class="row">${x.doc_url?`<a class="btn ghost" href="${esc(x.doc_url)}" target="_blank" rel="noopener">Voir la pièce</a>`:''}${x.selfie_url?`<a class="btn ghost" href="${esc(x.selfie_url)}" target="_blank" rel="noopener">Voir le selfie</a>`:''}</div><p class="xs muted">Liens valables 10 minutes. Vérifiez la majorité, la correspondance du visage et la validité du document.</p>
+    <div class="pbar"><button class="btn pri" data-a="live-adm-id" data-id="${esc(x.id)}" data-v="1">Valider l'identité</button><button class="btn bad" data-a="live-adm-id" data-id="${esc(x.id)}" data-v="0">Refuser</button></div></div>`).join(''):'<div class="empty">Aucune pièce en attente.</div>'}</section>
+  <section class="section"><h2>Accompagnateurs à valider</h2>${D.companions.length?D.companions.map(c=>`<div class="card stack"><div class="row"><b class="grow">${esc((c.profiles?.first_name||'')+' '+(c.profiles?.last_name||''))}</b>${c.profiles?.identity_verified?'<span class="pill t-ok">Identité vérifiée</span>':'<span class="pill t-warn">Identité non vérifiée</span>'}</div><span class="xs muted">${esc(c.profiles?.city||'')} · ${eur(+c.hourly_rate)}/h · ${esc((c.categories||[]).join(', ')||'aucune activité')}</span>${c.bio?`<p class="sm ugc">${esc(c.bio)}</p>`:''}
+    <div class="pbar"><button class="btn pri" data-a="live-adm-comp" data-id="${esc(c.id)}" data-v="Standard" ${c.profiles?.identity_verified?'':'disabled'}>Valider (Standard)</button><button class="btn" data-a="live-adm-comp" data-id="${esc(c.id)}" data-v="Prestige" ${c.profiles?.identity_verified?'':'disabled'}>Valider (Prestige)</button></div></div>`).join(''):'<div class="empty">Aucun profil en attente.</div>'}</section>`}
+function lAdmAudit(){const D=LIVE_ADM.data;if(!D)return lAdmDash();return `<section class="section"><h2>Journal de sécurité</h2>${D.logs.map(l=>`<div class="card row"><span class="xs muted">${lfd(l.created_at)}</span><span class="grow sm">${esc(l.action)}</span><span class="xs muted">${esc(l.ref||'')}</span></div>`).join('')||'<div class="empty">Journal vide.</div>'}</section>`}
+function lAdmSettings(){return `<section class="section"><h2>Sécurité de l'administration</h2><div class="card stack"><div class="row"><b class="grow">Double authentification</b><span class="pill t-ok">Active</span></div><p class="xs muted">Chaque connexion à l'espace administrateur exige le mot de passe du compte et un code de l'application d'authentification. Chaque décision est enregistrée dans le journal de sécurité. Les réglages financiers se modifient dans la base de données, avec l'accord du dirigeant.</p></div></section>`+logoutBlock()}
+
+/* ---------- Vérification d'identité et données personnelles (RGPD) ---------- */
+function liveIdCard(){const u=S.users.u1,L=S.liveId;if(u.verified==='ok')return '';
+  return `<section class="section"><h3>Vérification d'identité</h3><div class="card stack">${L&&L.status==='pending'?'<div class="note t-warn sm">Pièce reçue : l\'équipe Side by Side la vérifie (24 h ouvrées en général).</div>':`${L&&L.status==='refused'?`<div class="note t-bad sm">Pièce refusée${L.reason?' : '+esc(L.reason):''}. Déposez-en une nouvelle.</div>`:''}<p class="xs muted">Obligatoire avant toute prestation. Pièce d'identité ou passeport en cours de validité, puis un selfie. Fichiers privés, visibles uniquement par l'équipe de vérification, supprimés avec votre compte.</p>
+  <form class="stack" data-form="live-id"><div class="field"><label for="id-doc">Pièce d'identité (photo ou PDF, 5 Mo max.)</label><input id="id-doc" name="doc" type="file" accept="image/jpeg,image/png,application/pdf"></div><div class="field"><label for="id-selfie">Selfie (photo de votre visage)</label><input id="id-selfie" name="selfie" type="file" accept="image/jpeg,image/png" capture="user"></div><p class="note t-bad sm" id="id-err" hidden></p><button class="btn pri full">Envoyer pour vérification</button></form>`}</div></section>`}
+function liveDataCard(){return `<section class="section"><h3>Mes données personnelles</h3><div class="card stack"><p class="xs muted">Vous pouvez obtenir une copie de vos données ou supprimer votre compte. Les factures et écritures comptables sont conservées 10 ans (obligation légale), rattachées à un compte anonymisé.</p><button class="btn" data-a="live-export">Obtenir une copie de mes données</button><button class="btn bad" data-a="live-delete">Supprimer mon compte</button></div></section>`}
+async function liveIdSubmit(f){const e=m=>{const p=document.getElementById('id-err');p.textContent=tr(m);p.hidden=false},doc=f.querySelector('[name=doc]').files[0],sf=f.querySelector('[name=selfie]').files[0];
+  const okType=(x,pdf)=>x&&x.size<=5*1024*1024&&(/^image\/(jpeg|png)$/.test(x.type)||(pdf&&x.type==='application/pdf'));
+  if(!okType(doc,true))return e('Pièce d\'identité : JPG, PNG ou PDF, 5 Mo maximum.');if(!okType(sf,false))return e('Selfie : JPG ou PNG, 5 Mo maximum.');
+  const stamp=Date.now(),ext=x=>x.type==='application/pdf'?'pdf':x.type==='image/png'?'png':'jpg',dp=`${ME.id}/identite-${stamp}.${ext(doc)}`,sp=`${ME.id}/selfie-${stamp}.${ext(sf)}`;
+  toast('Envoi en cours…');
+  const u1=await SB.storage.from('documents').upload(dp,doc,{contentType:doc.type}),u2=await SB.storage.from('documents').upload(sp,sf,{contentType:sf.type});
+  if(u1.error||u2.error)return toast('Envoi impossible. Vérifiez votre connexion.',true);
+  const {error}=await SB.from('identity_checks').insert({user_id:ME.id,doc_path:dp,selfie_path:sp});
+  if(error)return toast(/identity_one_pending/.test(error.message)?'Une vérification est déjà en cours.':'Envoi impossible. Réessayez.',true);
+  toast('Documents envoyés. Vous serez prévenu(e) dès la vérification.');liveLoad()}
+
+/* ---------- Paiement : Stripe (quand la clé publique est configurée) ---------- */
+function stripeJs(){return window.Stripe?Promise.resolve(window.Stripe):new Promise((ok,ko)=>{const s=document.createElement('script');s.src='https://js.stripe.com/v3/';s.onload=()=>ok(window.Stripe);s.onerror=ko;document.head.appendChild(s)})}
+async function livePayWith(secret,amount,label){const pk=SBS_CONFIG.stripePk;if(!pk)throw new Error('Le paiement en ligne sera disponible très bientôt.');
+  const st=(await stripeJs())(pk),el=st.elements({clientSecret:secret,locale:S.lang||'fr'});
+  open('livepay',{label,amount});render();const pe=el.create('payment');pe.mount('#livepay-el');
+  S.livePay={st,el}}
+async function livePayConfirm(){const P=S.livePay;if(!P)return;const btn=document.getElementById('livepay-go');if(btn)btn.disabled=true;
+  const {error}=await P.st.confirmPayment({elements:P.el,redirect:'if_required'});
+  if(error){toast(error.message||'Paiement refusé.',true);if(btn)btn.disabled=false;return}
+  S.sheet=null;S.livePay=null;toast('Paiement reçu. Confirmation en cours…');setTimeout(liveLoad,1500)}
+
+/* ---------- Branchement sur le serveur ---------- */
+function liveBoot2(){
+  const _mfa=mfa;mfa=()=>ME&&ME.role==='admin'?liveMfaHtml():_mfa();
+  aDash=lAdmDash;aDisputes=lAdmDisputes;aVerif=lAdmUsers;aAudit=lAdmAudit;aSettings=lAdmSettings;
+  ['aSupport','aDecisions','aGalReview','aExpReview','aBiz','aUsers','aAdmins','aPhotoTool'].forEach(n=>{window[n]=()=>''});
+  const _cAcc=cAccount;cAccount=(...x)=>liveIdCard()+_cAcc(...x)+liveDataCard();
+  const _pProf=pProfile;pProfile=(...x)=>liveIdCard()+_pProf(...x)+liveDataCard();
+  const ok=(p,m)=>{liveDo(p,m);return{ok:1,msg:'Envoi…'}};
+  const M=(b,action,extra)=>liveCall('mission-action',{booking_id:b.id,action,...extra});
+  api.presence=(b)=>ok(M(b,'presence'),'Présence confirmée.');
+  api.verifyCode=(b,code)=>{if(!/^\d{6}$/.test(String(code||'').replace(/\s/g,'')))return{err:'Saisissez les 6 chiffres du code.'};return ok(M(b,'verify_code',{code:String(code).replace(/\s/g,'')}),'Bonne rencontre confirmée.')};
+  api.start=(b)=>ok(M(b,'start'),'Début validé.');
+  api.declareEnd=(b)=>ok(M(b,'end'),'Fin confirmée.');
+  api.requestExt=(b,mins)=>ok(M(b,'ext_request',{minutes:+mins}),'Demande de prolongation envoyée.');
+  api.respondExt=(b,yes)=>ok(M(b,'ext_respond',{accept:!!yes}),yes?'Prolongation acceptée.':'Prolongation refusée.');
+  api.payExt=(b)=>{M(b,'ext_pay').then(r=>livePayWith(r.client_secret,r.amount,'Prolongation '+b.ref)).catch(e=>toast(e.message,true));return{ok:1,msg:'Préparation du paiement…'}};
+  api.openDispute=(b,who,motif,desc,status)=>status==='incident'?ok(M(b,'interrupt'),'Mission interrompue. L\'équipe Side by Side est prévenue.'):(String(desc||'').trim().length<10?{err:'Décrivez le problème (10 caractères minimum).'}:ok(M(b,'dispute',{reason:motif,description:desc}),'Dossier ouvert. L\'équipe Side by Side vous répond sous 48 h.'));
+  api.pay=(b)=>{liveCall('create-payment',{booking_id:b.id,gift_code:b.giftCode||null}).then(r=>{if(r.paid){toast('Réservation payée.');return liveLoad()}return livePayWith(r.client_secret,r.amount,'Réservation '+b.ref)}).catch(e=>toast(e.message,true));return{ok:1,msg:'Préparation du paiement…'}};
+  api.review=(b,who,stars,text)=>{const st=+stars;if(!(st>=1&&st<=5))return{err:'Choisissez une note de 1 à 5.'};
+    SB.from('reviews').insert({booking_id:b.id,author_id:ME.id,target_id:realOf(who==='client'?b.companionId:b.clientId),stars:st,body:String(text||'').trim().slice(0,1000)||null}).then(({error})=>{toast(error?(/duplicate|unique/.test(error.message)?'Vous avez déjà donné votre avis.':'Avis impossible pour cette réservation.'):'Merci. Les deux avis sont publiés quand chacun a donné le sien.',!!error);if(!error)liveLoad()});return{ok:1,msg:'Envoi…'}};
+  const _ch=liveSubscribe;liveSubscribe=()=>{const first=!LIVE_SUB;_ch();if(first&&LIVE_SUB&&SB.channel)SB.channel('sbs-n-'+ME.id).on('postgres_changes',{event:'INSERT',schema:'public',table:'notifications',filter:'user_id=eq.'+ME.id},p=>{const n=p.new;S.notifs.unshift({id:n.id,to:S.role,text:n.body,t:Date.parse(n.created_at),read:false,kind:n.kind,bid:n.booking_id});if(n.kind==='sos'&&S.role==='admin')toast(n.body,true);else toast(n.body);if(S.role==='admin'&&S.adminOk)liveAdminLoad();else render()}).subscribe()};
+}
+function liveSosTarget(el){return el.dataset.id||(S.sheet&&S.sheet.id)||null}
+function liveClick2(a,el){
+  if(a==='live-mfa-retry'){S.liveMfa=null;return true}
+  if(a==='live-adm-refresh'){liveAdminLoad();return true}
+  if(a==='live-adm-id'){const yes=el.dataset.v==='1';if(yes)admDo({action:'identity_review',check_id:el.dataset.id,approve:true},'Identité validée.');else{open('live-reason',{kind:'id',id:el.dataset.id})}return true}
+  if(a==='live-adm-comp'){admDo({action:'companion_review',companion_id:el.dataset.id,approve:true,tier:el.dataset.v},'Profil validé et visible des clients.');return true}
+  if(a==='live-adm-suspend'){open('live-reason',{kind:'suspend',id:el.dataset.id});return true}
+  if(a==='notifs'){const ids=S.notifs.filter(n=>!n.read&&n.id).map(n=>n.id);if(ids.length)SB.from('notifications').update({read_at:new Date().toISOString()}).in('id',ids).then(()=>{});return false}
+  if(a==='live-export'){liveCall('account',{action:'export'}).then(d=>{open('live-export',{json:JSON.stringify(d,null,2)});render()}).catch(e=>toast(e.message,true));return true}
+  if(a==='live-copy'){const t=S.sheet&&S.sheet.json||'';(navigator.clipboard?navigator.clipboard.writeText(t):Promise.reject()).then(()=>toast('Copié.')).catch(()=>{const x=document.getElementById('lx-json');if(x){x.focus();x.select()}toast('Sélectionnez le texte pour le copier.')});return true}
+  if(a==='live-delete'){open('live-delete');return true}
+  if(a==='livepay-go'){livePayConfirm();return true}
+  if(a==='sos-report'||a==='sos-contact'||a==='sos-loc'){const id=liveSosTarget(el),b=id&&S.bookings.find(x=>x.id===id);
+    const send=(kind,pos)=>liveCall('sos',{booking_id:b?b.id:null,kind,...(pos||{})});
+    if(a==='sos-report'){send('report').then(()=>toast('Signalement prioritaire transmis à Side by Side.')).catch(e=>toast(e.message,true));return true}
+    if(a==='sos-loc'){if(!navigator.geolocation){toast('Position indisponible sur cet appareil.',true);return true}
+      navigator.geolocation.getCurrentPosition(p=>send('location',{latitude:p.coords.latitude,longitude:p.coords.longitude}).then(()=>toast('Position transmise à l\'équipe Side by Side.')).catch(e=>toast(e.message,true)),()=>toast('Autorisez l\'accès à la position dans les réglages du téléphone.',true),{enableHighAccuracy:true,timeout:15000});return true}
+    const tc=(ME&&ME.trusted_contact)||'';send('contact').catch(()=>{});
+    if(!tc){toast('Ajoutez d\'abord un contact de confiance dans Compte.',true);return true}
+    const num=(tc.match(/\+?\d[\d\s.]{8,}/)||[''])[0].replace(/[\s.]/g,'');
+    if(!num){toast('Le numéro du contact de confiance est introuvable.',true);return true}
+    const msg=encodeURIComponent(`Alerte Side by Side : j'ai besoin d'aide${b?` (rendez-vous ${b.ref}, ${b.place})`:''}. Appelle-moi ou préviens le 112.`);
+    location.href=`sms:${num}?body=${msg}`;toast('Votre application SMS s\'ouvre : envoyez le message.');return true}
+  return false}
+function liveSubmit2(k,f,d){
+  if(k==='live-mfa'){const e=m=>{const p=document.getElementById('mfa-err');p.textContent=tr(m);p.hidden=false;return 'stop'},code=String(d.code||'').replace(/\D/g,'');
+    if(code.length!==6)return e('Saisissez les 6 chiffres.');
+    SB.auth.mfa.challengeAndVerify({factorId:S.liveMfa.factorId,code}).then(({error})=>{if(error)return e('Code invalide.');S.adminOk=true;S.liveMfa=null;liveAdminLoad()});return 'stop'}
+  if(k==='live-adm-decide'){const note=String(d.note||'').trim();if(note.length<5){toast('Motivez la décision.',true);return 'stop'}
+    admDo({action:'dispute_decide',dispute_id:f.dataset.id,decision:d.decision,refund_pct:+d.pct,note},'Décision enregistrée.');return 'stop'}
+  if(k==='live-reason'){const r=String(d.reason||'').trim();if(r.length<5){toast('Indiquez un motif (5 caractères minimum).',true);return 'stop'}const s=S.sheet;S.sheet=null;
+    if(s.kind==='id')admDo({action:'identity_review',check_id:s.id,approve:false,reason:r},'Pièce refusée, le membre est prévenu.');else admDo({action:'suspend',user_id:s.id,suspended:true,reason:r},'Compte suspendu.');return true}
+  if(k==='live-id'){liveIdSubmit(f);return 'stop'}
+  if(k==='live-delete'){if(String(d.confirm||'').trim()!=='SUPPRIMER'){toast('Écrivez SUPPRIMER pour confirmer.',true);return 'stop'}
+    liveCall('account',{action:'delete',confirm:'SUPPRIMER'}).then(()=>{S.sheet=null;toast('Compte supprimé.');SB.auth.signOut()}).catch(e=>toast(e.message,true));return 'stop'}
+  return false}
+function liveSheets(s){
+  if(s.type==='live-reason')return `${head(s.kind==='id'?'Refuser la pièce d\'identité':'Suspendre le compte','Le membre est prévenu et peut contester.')}<form class="stack" data-form="live-reason"><div class="field"><label for="lr-r">Motif</label><textarea id="lr-r" name="reason" rows="3"></textarea></div><button class="btn ${s.kind==='id'?'pri':'bad'} full">Confirmer</button></form>`;
+  if(s.type==='live-export')return `${head('Mes données','Copie complète de vos données Side by Side')}<textarea id="lx-json" class="sel" rows="14" readonly style="width:100%;font-family:monospace;font-size:.75rem">${esc(s.json)}</textarea><button class="btn pri full" data-a="live-copy">Copier</button>`;
+  if(s.type==='live-delete')return `${head('Supprimer mon compte','Action définitive')}<p class="sm">Vos informations personnelles, pièces d'identité et photos sont supprimées. Impossible si une réservation est en cours.</p><form class="stack" data-form="live-delete"><div class="field"><label for="ld-c">Écrivez SUPPRIMER pour confirmer</label><input id="ld-c" name="confirm" autocomplete="off"></div><button class="btn bad full">Supprimer définitivement</button></form>`;
+  if(s.type==='livepay')return `${head(esc(s.label),'Paiement sécurisé par Stripe')}<p class="sm">Montant : <b class="num">${eur(+s.amount)}</b></p><div id="livepay-el" style="min-height:120px"></div><button class="btn pri full big" id="livepay-go" data-a="livepay-go">Payer ${eur(+s.amount)}</button>`;
+  return null}
 
 /* ================= V1.6 — Galerie : photo de référence + 5 photos, validation puis verrouillage ================= */
 const GAL_MAX=5;

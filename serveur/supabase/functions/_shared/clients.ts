@@ -17,7 +17,7 @@ export const admin = createClient(Deno.env.get("SUPABASE_URL")!, Deno.env.get("S
 // et le site web indiqué dans APP_ORIGIN (plusieurs adresses séparées par des virgules).
 const ORIGINS = new Set(["https://localhost", "capacitor://localhost", "http://localhost",
   ...(Deno.env.get("APP_ORIGIN") ?? "").split(",").map((s) => s.trim()).filter(Boolean)]);
-function corsHeaders(req: Request): Record<string, string> {
+export function corsHeaders(req: Request): Record<string, string> {
   const o = req.headers.get("Origin") ?? "";
   return {
     ...(ORIGINS.has(o) ? { "Access-Control-Allow-Origin": o, "Vary": "Origin" } : {}),
