@@ -52,6 +52,10 @@ jobs:
       - name: Test des origines autorisées (CORS)
         if: always()
         run: set -o pipefail; SUPABASE_URL=http://localhost SUPABASE_SERVICE_ROLE_KEY=x APP_ORIGIN=https://sidebyside.example deno test --node-modules-dir=none --allow-env --allow-net --allow-read --allow-import tests/cors_test.ts 2>&1 | tee tests/resultats-cors.txt
+      - name: Vérification des types de toutes les fonctions serveur (TypeScript)
+        if: always()
+        continue-on-error: true
+        run: set -o pipefail; cd serveur/supabase/functions && deno check --node-modules-dir=none --allow-import */index.ts 2>&1 | grep -v Download | tee ../../../tests/resultats-types.txt
       - name: Résumé
         if: always()
         run: |

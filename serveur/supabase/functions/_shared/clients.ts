@@ -5,7 +5,7 @@ import { createClient } from "npm:@supabase/supabase-js@2.45.4";
 // La clé se règle dans les secrets Supabase. STRIPE_API_HOST ne sert qu'aux tests (serveur Stripe simulé).
 const stripeHost = Deno.env.get("STRIPE_API_HOST");
 export const stripe = new Stripe(Deno.env.get("STRIPE_SECRET_KEY") ?? "cle-stripe-a-configurer", {
-  apiVersion: "2024-06-20",
+  apiVersion: "2024-06-20" as Stripe.LatestApiVersion,   // version figée du compte (bibliothèque 14.x typée 2023-10-16)
   ...(stripeHost ? { host: stripeHost, port: Number(Deno.env.get("STRIPE_API_PORT") ?? 12111), protocol: "http" as const } : {}),
 });
 export const stripeReady = () => !!Deno.env.get("STRIPE_SECRET_KEY");
