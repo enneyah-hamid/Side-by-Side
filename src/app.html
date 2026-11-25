@@ -147,6 +147,10 @@ nav.tabs button svg{width:21px;height:21px}
 nav.tabs button.on{color:var(--accent)}
 nav.tabs button span{white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100%;font-size:min(.68rem,2.3vw);letter-spacing:-.01em}
 html.comfort .tabs button span{font-size:min(.68rem,1.9vw)}
+/* Barre du bas : se cache quand on fait défiler vers le bas, réapparaît en remontant */
+.tabs{transition:transform .25s ease}
+html.navhide .tabs{transform:translateY(calc(100% + 2px))}
+@media (prefers-reduced-motion:reduce){.tabs{transition:none}}
 main{padding-bottom:96px}
 /* feuilles */
 .scrim{position:fixed;inset:0;background:var(--scrim);z-index:50;display:flex;align-items:flex-end;justify-content:center}
@@ -2283,6 +2287,16 @@ function seedFix(){const N=now(),ANCH={demande_creee:0,en_attente:0,acceptee:1,p
       if(sg.companion)sg.companion=Math.min(Math.max(sg.companion,acc),pay?pay-20*60000:sg.companion);if(sg.client)sg.client=Math.min(Math.max(sg.client,(sg.companion||acc)+5*60000),pay?pay-10*60000:Infinity)}
     if(b.ends){if(b.ends.client&&b.ends.client<b.start)b.ends.client=Math.min(end,N);if(b.ends.companion&&b.ends.companion<b.start)b.ends.companion=Math.min(end+2*60000,N)}
   })}
+
+/* Barre de navigation du bas : masquée pendant le défilement vers le bas, visible dès qu'on remonte,
+   en haut et en bas de la page, et à chaque changement d'écran */
+(function(){let lastY=window.scrollY,acc=0;const root=document.documentElement,show=()=>{root.classList.remove('navhide');acc=0};
+  window.addEventListener('scroll',()=>{const y=window.scrollY,d=y-lastY,max=root.scrollHeight-window.innerHeight;lastY=y;
+    if(y<40||y>=max-4||S.sheet){show();return}
+    acc=(acc>0)===(d>0)?acc+d:d;
+    if(acc>24)root.classList.add('navhide');else if(acc<-12)root.classList.remove('navhide')},{passive:true});
+  document.addEventListener('focusin',e=>{if(e.target.closest&&e.target.closest('.tabs'))show()});
+  const _r=render;render=(...x)=>{const t=S.tab,r=S.role,res=_r(...x);if(t!==render._t||r!==render._r){show();render._t=t;render._r=r}return res}})();
 /* ================= V2.6 — Corrections de l'audit fonctionnel (espaces client et accompagnateur) ================= */
 const CLOSED_ST=['cloturee','annulee','refusee','expiree'];
 // Prestations incluses : uniquement celles qui correspondent à l'activité réservée
