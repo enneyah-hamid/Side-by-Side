@@ -1,23 +1,21 @@
-// Pourboire : 100 % reversé à l'accompagnateur (aucune commission)
-import { stripe, admin, json, cors, currentUser, cents } from "../_shared/clients.ts";
+// Pourboire : 100 % reversé à l'accompagnateur (aucune commission), un seul par réservation
+import { stripe, stripeReady, admin, json, serve, currentUser, cents, HttpError } from "../_shared/clients.ts";
 
-Deno.serve(async (req) => {
-  if (req.method === "OPTIONS") return new Response("ok", { headers: cors });
-  try {
-    const me = await currentUser(req);
-    const { booking_id, amount } = await req.json();
-    const a = Number(amount);
-    if (!(a >= 1 && a <= 500)) return json({ error: "Montant entre 1 et 500 €" }, 400);
-    const { data: b } = await admin.from("bookings").select("*, companions(stripe_account_id)").eq("id", booking_id).single();
-    if (!b || b.client_id !== me.id) return json({ error: "Introuvable" }, 404);
-    if (!["terminee", "versement", "cloturee"].includes(b.status) || Number(b.tip) > 0) return json({ error: "Pourboire impossible" }, 409);
-    if (!me.stripe_customer_id) return json({ error: "Aucun moyen de paiement enregistré" }, 409);
-    const pi = await stripe.paymentIntents.create({
-      amount: cents(a), currency: "eur", customer: me.stripe_customer_id,
-      automatic_payment_methods: { enabled: true },
-      transfer_data: { destination: b.companions.stripe_account_id },   // 100 % à l'accompagnateur
-      metadata: { booking_id: b.id, kind: "tip" }, description: `Pourboire · ${b.ref}`,
-    });
-    return json({ client_secret: pi.client_secret });
-  } catch (e) { return json({ error: (e as Error).message }, 400); }
+serve(async (req) => {
+  const me = await currentUser(req);
+  const { booking_id, amount } = await req.json();
+  const a = Math.round(Number(amount) * 100) / 100;
+  if (!(a >= 1 && a <= 500)) throw new HttpError(400, "Montant entre 1 et 500 €");
+  const { data: b } = await admin.from("bookings").select("*, companions(stripe_account_id, payouts_enabled)").eq("id", booking_id).single();
+  if (!b || b.client_id !== me.id) throw new HttpError(404, "Introuvable");
+  if (!["terminee", "versement", "cloturee"].includes(b.status) || Number(b.tip) > 0) throw new HttpError(409, "Pourboire impossible");
+  if (!b.companions?.stripe_account_id || !b.companions.payouts_enabled) throw new HttpError(409, "L'accompagnateur ne peut pas encore recevoir de pourboire");
+  if (!stripeReady()) throw new HttpError(503, "Le paiement en ligne sera disponible très bientôt.");
+  if (!me.stripe_customer_id) throw new HttpError(409, "Aucun moyen de paiement enregistré");
+  const pi = await stripe.paymentIntents.create({
+    amount: cents(a), currency: "eur", customer: me.stripe_customer_id, automatic_payment_methods: { enabled: true },
+    transfer_data: { destination: b.companions.stripe_account_id },
+    metadata: { booking_id: b.id, kind: "tip" }, description: `Pourboire · ${b.ref}`,
+  }, { idempotencyKey: `tip-${b.id}-${cents(a)}` });             // double clic : même paiement
+  return json({ client_secret: pi.client_secret });
 });

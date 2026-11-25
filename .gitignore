@@ -5,3 +5,7 @@ android/app/build/
 ios/App/Pods/
 *.keystore
 .env
+tests/node_modules/
+tests/.sb.env
+tests/.env.functions
+tests/package*.json

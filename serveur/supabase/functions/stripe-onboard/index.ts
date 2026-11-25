@@ -1,12 +1,12 @@
 // Inscription d'un accompagnateur sur Stripe Connect (compte Express)
 // L'accompagnateur renseigne lui-même son identité et son IBAN chez Stripe.
-import { stripe, admin, json, cors, currentUser } from "../_shared/clients.ts";
+import { stripe, stripeReady, admin, json, serve, currentUser, HttpError } from "../_shared/clients.ts";
 
-Deno.serve(async (req) => {
-  if (req.method === "OPTIONS") return new Response("ok", { headers: cors });
-  try {
+serve(async (req) => {
+  {
+    if (!stripeReady()) throw new HttpError(503, "Le paiement en ligne sera disponible très bientôt.");
     const me = await currentUser(req);
-    if (me.role !== "companion") return json({ error: "Réservé aux accompagnateurs" }, 403);
+    if (me.role !== "companion") throw new HttpError(403, "Réservé aux accompagnateurs");
     const { data: c } = await admin.from("companions").select("stripe_account_id").eq("id", me.id).single();
     let accountId = c?.stripe_account_id;
     if (!accountId) {
@@ -15,7 +15,7 @@ Deno.serve(async (req) => {
         business_type: "individual",
         capabilities: { transfers: { requested: true } },
         metadata: { profile_id: me.id },
-      });
+      }, { idempotencyKey: `acct-${me.id}` });
       accountId = account.id;
       await admin.from("companions").update({ stripe_account_id: accountId }).eq("id", me.id);
     }
@@ -25,5 +25,5 @@ Deno.serve(async (req) => {
       refresh_url: `${origin}/compagnon/paiements?retry=1`, return_url: `${origin}/compagnon/paiements?ok=1`,
     });
     return json({ url: link.url });
-  } catch (e) { return json({ error: (e as Error).message }, 400); }
+  }
 });

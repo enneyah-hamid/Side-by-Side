@@ -1,0 +1,52 @@
+# Tests d'intégration du serveur : base Supabase locale + fonctions serveur + Stripe simulé (stripe-mock).
+# Aucune donnée de production, aucune transaction réelle.
+name: Tests serveur (sécurité, paiements, concurrence)
+on: [push, workflow_dispatch]
+jobs:
+  tests:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: supabase/setup-cli@v1
+        with: { version: latest }
+      - uses: actions/setup-node@v4
+        with: { node-version: 22 }
+      - name: Démarrer Supabase en local (migrations 0001 à 0008 appliquées)
+        working-directory: serveur
+        run: |
+          [ -f supabase/config.toml ] || supabase init --force
+          supabase start -x studio,imgproxy,vector,logflare,supavisor,postgres-meta,mailpit
+          supabase status -o env > ../tests/.sb.env
+      - name: Démarrer le serveur Stripe simulé et les fonctions serveur
+        run: |
+          NET=$(docker network ls --format '{{.Name}}' | grep supabase_network | head -1)
+          docker run -d --name stripemock --network "$NET" -p 12111:12111 stripe/stripe-mock:latest
+          cat > tests/.env.functions <<EOT
+          STRIPE_SECRET_KEY=sk_test_123
+          STRIPE_API_HOST=stripemock
+          STRIPE_API_PORT=12111
+          STRIPE_WEBHOOK_SECRET=whsec_test_integration_side_by_side
+          INTERNAL_KEY=cle-interne-de-test-tres-longue-123456
+          APP_ORIGIN=https://sidebyside.example
+          EOT
+          sed -i 's/^ *//' tests/.env.functions
+          cd serveur && (supabase functions serve --env-file ../tests/.env.functions --no-verify-jwt > ../tests/functions.log 2>&1 &)
+          for i in $(seq 1 60); do curl -s -o /dev/null -w '%{http_code}' -X POST http://127.0.0.1:54321/functions/v1/sweeper | grep -q 403 && break; sleep 3; done
+      - name: Lancer les tests
+        working-directory: tests
+        run: |
+          set -a; . ./.sb.env; set +a
+          npm init -y >/dev/null && npm i --silent @supabase/supabase-js@2.45.4 stripe@14.25.0
+          SB_URL=$API_URL SB_ANON=$ANON_KEY SB_SERVICE=$SERVICE_ROLE_KEY INTERNAL_KEY=cle-interne-de-test-tres-longue-123456 STRIPE_WEBHOOK_SECRET=whsec_test_integration_side_by_side \
+            node integration.mjs | tee resultats.txt
+      - name: Résumé
+        if: always()
+        run: |
+          echo '## Résultats des tests serveur' >> $GITHUB_STEP_SUMMARY
+          cat tests/resultats.txt >> $GITHUB_STEP_SUMMARY 2>/dev/null || true
+          echo '### Journal des fonctions (fin)' >> $GITHUB_STEP_SUMMARY
+          tail -60 tests/functions.log | sed 's/^/    /' >> $GITHUB_STEP_SUMMARY 2>/dev/null || true
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with: { name: resultats-tests-serveur, path: "tests/resultats*.*" }
