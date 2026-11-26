@@ -1,10 +1,16 @@
 # Compilation automatique de l'application Android à chaque envoi sur GitHub.
 # Le fichier .apk à installer apparaît dans l'onglet « Actions » > dernier passage > « Artifacts ».
+# Avec les secrets ANDROID_KEYSTORE_B64 et ANDROID_KEYSTORE_PASSWORD, l'application est signée avec la clé
+# de Side by Side (installation par-dessus la version précédente) et un fichier .aab pour Google Play est aussi produit.
 name: Android (test)
 on: [push, workflow_dispatch]
 jobs:
   build:
     runs-on: ubuntu-latest
+    env:
+      ANDROID_KEYSTORE_B64: ${{ secrets.ANDROID_KEYSTORE_B64 }}
+      ANDROID_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+      BUILD_NUMBER: ${{ github.run_number }}
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -16,7 +22,26 @@ jobs:
       - run: npx cap add android || true
       - run: npx @capacitor/assets generate --android --iconBackgroundColor '#060D1F' --splashBackgroundColor '#060D1F'
       - run: node scripts/android-permissions.mjs
+      - name: Clé de signature de Side by Side
+        run: |
+          if [ -n "$ANDROID_KEYSTORE_B64" ] && [ -n "$ANDROID_KEYSTORE_PASSWORD" ]; then
+            echo "$ANDROID_KEYSTORE_B64" | tr -d ' \n\r' | base64 -d > android/app/side-by-side.keystore && echo "Clé installée."
+          else
+            echo "Secrets de signature absents : clé temporaire (cette version ne pourra pas être mise à jour par-dessus)."
+            P=$(openssl rand -hex 16); echo "ANDROID_KEYSTORE_PASSWORD=$P" >> $GITHUB_ENV; echo "TEMP_KEY=1" >> $GITHUB_ENV
+            keytool -genkeypair -storetype pkcs12 -keystore android/app/side-by-side.keystore -alias sidebyside -keyalg RSA -keysize 2048 -validity 365 -storepass "$P" -keypass "$P" -dname "CN=Side by Side test, O=Zyntell, C=FR"
+          fi
+      - run: node scripts/android-version.mjs
       - run: npx cap sync android
-      - run: cd android && ./gradlew assembleDebug
+      - name: Compiler
+        run: |
+          cd android
+          ./gradlew assembleRelease bundleRelease
+          mkdir -p ../sortie
+          if [ "$TEMP_KEY" = "1" ]; then cp app/build/outputs/apk/release/app-release.apk ../sortie/Side-by-Side-test-cle-temporaire.apk
+          else cp app/build/outputs/apk/release/app-release.apk ../sortie/Side-by-Side.apk && cp app/build/outputs/bundle/release/app-release.aab ../sortie/Side-by-Side-GooglePlay.aab; fi
+          BT=$(ls -d "$ANDROID_HOME"/build-tools/*/ | sort -V | tail -1); "${BT}apksigner" verify --print-certs ../sortie/*.apk | grep -i "SHA-256" | head -1 || true
+          grep -E "versionCode|versionName" app/build.gradle | head -2
+          ls -la ../sortie
       - uses: actions/upload-artifact@v4
-        with: { name: side-by-side-android, path: android/app/build/outputs/apk/debug/app-debug.apk }
+        with: { name: side-by-side-android, path: sortie/ }

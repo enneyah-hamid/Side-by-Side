@@ -126,7 +126,10 @@ serve(async (req) => {
       inc("rappels_infos_fiscales");
     }
   }
-  // 13. Nettoyage des compteurs de tentatives de plus de 7 jours
+  // 13. Demandes de sortie dont la date est passée : expirées
+  const { data: oexp } = await admin.from("open_requests").update({ status: "expiree" }).eq("status", "ouverte").lt("starts_at", new Date().toISOString()).select("id");
+  if (oexp?.length) n.demandes_ouvertes_expirees = oexp.length;
+  // 14. Nettoyage des compteurs de tentatives de plus de 7 jours
   await admin.from("rate_events").delete().lt("created_at", iso(-7 * 24 * H));
   return json({ ok: true, ...n });
 });

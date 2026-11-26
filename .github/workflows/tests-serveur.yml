@@ -53,6 +53,9 @@ jobs:
       - name: Tests unitaires du fichier DAC7 (société, TVA, comptes rendus officiels)
         if: always()
         run: set -o pipefail; SUPABASE_URL=http://localhost SUPABASE_SERVICE_ROLE_KEY=x deno test --node-modules-dir=none --allow-env --allow-net --allow-read --allow-write --allow-import tests/dpi_test.ts 2>&1 | tee tests/resultats-dpi.txt
+      - name: Tests unitaires des e-mails Side by Side
+        if: always()
+        run: set -o pipefail; deno test --node-modules-dir=none --allow-env --allow-read tests/mailer_test.ts 2>&1 | tee tests/resultats-mailer.txt
       - name: Validation du XML DAC7 contre le schéma officiel OCDE DPI v1.0
         if: always()
         run: |

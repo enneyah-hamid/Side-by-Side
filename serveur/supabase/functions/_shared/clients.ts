@@ -1,6 +1,7 @@
 // Clients partagés par toutes les fonctions serveur Side by Side
 import Stripe from "npm:stripe@14.25.0";
 import { createClient } from "npm:@supabase/supabase-js@2.45.4";
+import { KIND_PREF, mailFor, mailReady, sendMail } from "./mailer.ts";
 
 // La clé se règle dans les secrets Supabase. STRIPE_API_HOST ne sert qu'aux tests (serveur Stripe simulé).
 const stripeHost = Deno.env.get("STRIPE_API_HOST");
@@ -86,10 +87,20 @@ export async function event(bookingId: string, status: string | null, actor: str
 export async function audit(actor: string | null, action: string, ref?: string | null) {
   await admin.from("audit_log").insert({ actor_id: actor, action: action.slice(0, 500), ref: ref ?? null });
 }
-// Notification dans l'application (temps réel) ; l'envoi push s'ajoute quand Firebase est configuré
+// Notification dans l'application (temps réel) ; l'envoi push s'ajoute quand Firebase est configuré.
+// E-mail en plus, dans la langue de l'utilisateur et selon ses préférences, dès que l'envoi est configuré.
 export async function notify(userId: string | null | undefined, body: string, bookingId?: string | null, kind = "info") {
   if (!userId) return;
   await admin.from("notifications").insert({ user_id: userId, body: body.slice(0, 400), booking_id: bookingId ?? null, kind });
+  if (mailReady() && KIND_PREF[kind]) await emailUser(userId, kind, body).catch((e) => console.error("e-mail", e));
+}
+async function emailUser(userId: string, kind: string, body: string) {
+  const { data: p } = await admin.from("profiles").select("first_name, lang, email_prefs, suspended").eq("id", userId).single();
+  if (!p || p.suspended || (p.email_prefs ?? {})[KIND_PREF[kind]] === false) return;
+  const { data: u } = await admin.auth.admin.getUserById(userId);
+  const to = u?.user?.email;
+  if (!to || to.endsWith("@invalid.sidebyside")) return;
+  await sendMail(to, mailFor(kind, p.lang, body, p.first_name));
 }
 export async function notifyAdmins(body: string, bookingId?: string | null, kind = "admin") {
   const { data } = await admin.from("profiles").select("id").eq("role", "admin").eq("suspended", false);

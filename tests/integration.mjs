@@ -511,6 +511,57 @@ async function confirmedBooking(client, comp, dayN, extra = {}) {
   r = await call(comp3, "account", { action: "export" });
   check("Y15", "Export RGPD : contrats d'assurance inclus", (r.insurances ?? []).length === 2);
 
+  // ---------- International : profil Google / Apple, demandes de sortie, fuseaux horaires ----------
+  const og = await svc.auth.admin.createUser({ email: "jean.google@test.fr", password: "Test-Passw0rd!", email_confirm: true, user_metadata: { full_name: "Jean Dupont", iss: "https://accounts.google.com" } });
+  const gU = { id: og.data.user.id, c: createClient(URL, ANON, { auth: { persistSession: false } }) };
+  await gU.c.auth.signInWithPassword({ email: "jean.google@test.fr", password: "Test-Passw0rd!" });
+  const gp = await row("profiles", gU.id);
+  check("W01", "Compte Google / Apple : profil créé (prénom, nom) sans date de naissance", gp.first_name === "Jean" && gp.last_name === "Dupont" && gp.birth_date === null, JSON.stringify({ f: gp.first_name, l: gp.last_name }));
+  await svc.from("profiles").update({ identity_verified: true }).eq("id", gU.id);
+  r = await call(gU, "create-booking", { companion_id: comp.id, category: "shopping", starts_at: day(9), hours: 2, place: "Paris centre" });
+  check("W02", "Profil incomplet : réservation refusée", r.status === 403 && /Complétez/.test(r.error ?? ""), r.error);
+  const cpBody = { role: "companion", first_name: "Jean", last_name: "Dupont", country: "JP", city: "Tokyo", phone: "+81312345678", lang: "en", time_zone: "Asia/Tokyo", terms: true, privacy: true, charter: true, adult: true, non_circumvention: true };
+  r = await call(gU, "complete-profile", { ...cpBody, birth_date: at(-15 * 365 * 24 * H).slice(0, 10) });
+  check("W03", "Fin d'inscription : mineur refusé", r.status === 403, r.error);
+  r = await call(gU, "complete-profile", { ...cpBody, birth_date: "1990-05-05" });
+  const gp2 = await row("profiles", gU.id), gc = await row("companions", gU.id);
+  check("W04", "Fin d'inscription : rôle, pays, ville, langue, fuseau et consentements enregistrés", r.ok && gp2.role === "companion" && gp2.country === "JP" && gp2.city === "Tokyo" && gp2.lang === "en" && !!gp2.terms_accepted_at && gc?.time_zone === "Asia/Tokyo");
+  r = await call(gU, "complete-profile", { ...cpBody, birth_date: "1990-05-05", role: "client" });
+  check("W05", "Fin d'inscription impossible deux fois (pas de changement de rôle)", r.status === 409);
+  // Disponibilités à l'heure locale de l'accompagnateur (Tokyo, 9 h – 12 h)
+  await svc.from("companions").update({ verified: true, video_interview_ok: true, categories: ["musees"], hour_from: 9, hour_to: 12, work_days: [0, 1, 2, 3, 4, 5, 6] }).eq("id", gU.id);
+  await insure(gU.id);
+  const cW = await user("client-monde@test.fr", { ...base, first_name: "Emma", role: "client", country: "GB", lang: "en" }, { identity_verified: true });
+  const tokyo = (n, hUtc) => day(n, hUtc);
+  r = await call(cW, "create-booking", { companion_id: gU.id, category: "musees", starts_at: tokyo(12, 1), hours: 2, place: "Ueno, Tokyo" });
+  const r2b = await call(cW, "create-booking", { companion_id: gU.id, category: "musees", starts_at: tokyo(13, 10), hours: 2, place: "Ueno, Tokyo" });
+  check("W06", "Fuseaux horaires : 10 h à Tokyo acceptée, 19 h à Tokyo refusée", !!r.booking && r2b.status === 400, `${r.error ?? "acceptée"} / ${r2b.error}`);
+  const { data: dirW } = await cW.c.rpc("companions_directory");
+  check("W07", "Annuaire : pays, ville normalisée et fuseau", (dirW ?? []).some((x) => x.id === gU.id && x.country === "JP" && x.city_key === "tokyo" && x.time_zone === "Asia/Tokyo"));
+  // Demandes de sortie : la cliente publie à Paris, l'accompagnatrice (Paris) cherche, propose ; réservation depuis la proposition
+  await svc.from("profiles").update({ city: "Paris" }).eq("id", comp.id);
+  const { data: oq, error: oqErr } = await cW.c.from("open_requests").insert({ client_id: cW.id, city: "  paris ", country: "FR", starts_at: day(33), hours: 2, category: "shopping", note: "Grands magasins" }).select().single();
+  check("W08", "Demande de sortie publiée (ville normalisée)", !oqErr && oq?.city_key === "paris", oqErr?.message);
+  const { data: seen } = await comp.c.rpc("search_open_requests", {});
+  const { data: seenTokyo } = await gU.c.rpc("search_open_requests", { p_city: "PARIS", p_country: "fr" });
+  const { data: notSeen } = await gU.c.rpc("search_open_requests", {});
+  check("W09", "Accompagnateur : sa ville par défaut ; recherche dans une autre ville", (seen ?? []).some((x) => x.id === oq?.id && x.client_first_name === "Emma") && (seenTokyo ?? []).some((x) => x.id === oq?.id) && !(notSeen ?? []).some((x) => x.id === oq?.id));
+  const { data: leakReq } = await comp.c.from("open_requests").select("id");
+  check("W10", "Détail des demandes (client) non lisible par les accompagnateurs", (leakReq ?? []).length === 0);
+  const { error: ofErr } = await comp.c.from("request_offers").insert({ request_id: oq?.id, companion_id: comp.id, message: "Avec plaisir" });
+  const { error: ofDup } = await comp.c.from("request_offers").insert({ request_id: oq?.id, companion_id: comp.id });
+  check("W11", "Proposition envoyée une seule fois, cliente prévenue", !ofErr && !!ofDup && (await count("notifications", { user_id: cW.id, kind: "reservation" })) >= 1, ofErr?.message);
+  const { data: myOff } = await cW.c.rpc("my_request_offers");
+  check("W12", "La cliente voit la proposition (prénom, tarif)", (myOff ?? []).some((x) => x.companion_id === comp.id && x.first_name === "Camille"));
+  r = await call(cW, "create-booking", { companion_id: comp.id, category: "shopping", starts_at: day(33), hours: 2, place: "Galeries Lafayette, Paris", request_id: oq?.id });
+  const oq2 = await row("open_requests", oq?.id);
+  check("W13", "Réservation depuis la proposition : demande pourvue", !!r.booking && oq2.status === "pourvue", r.error);
+  const { error: ofLate } = await gU.c.from("request_offers").insert({ request_id: oq?.id, companion_id: gU.id });
+  check("W14", "Demande pourvue : plus de proposition possible", !!ofLate);
+  const { error: badLang } = await cW.c.from("profiles").update({ lang: "jp" }).eq("id", cW.id);
+  const { error: okPrefs } = await cW.c.from("profiles").update({ lang: "en", email_prefs: { resa: true, msg: false, rappel: true, news: false }, interests: ["Art"] }).eq("id", cW.id);
+  check("W15", "Préférences : langue, e-mails, centres d'intérêt (langue inconnue refusée)", !!badLang && !okPrefs, okPrefs?.message);
+
   // ---------- Base de données (accès direct par l'API) ----------
   const { data: other } = await client2.c.from("bookings").select("id").eq("client_id", client.id);
   check("B01", "Un membre ne voit pas les réservations des autres", (other ?? []).length === 0);

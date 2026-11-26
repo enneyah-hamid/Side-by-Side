@@ -7,7 +7,7 @@ ck('V01','Fiche d\'un restaurant : pas de « visite commentée du quartier » ni
 const [dl]=await Promise.all([p.waitForEvent('download',{timeout:5000}).catch(()=>null),p.click('[data-a="pdf"]')]);
 let pdf=null;if(dl){const path=await dl.path();pdf=require('fs').readFileSync(path).toString('latin1')}
 ck('V02','Fiche de mission téléchargeable en PDF (fichier PDF valide)',!!pdf&&pdf.startsWith('%PDF-1.4')&&pdf.includes('%%EOF')&&pdf.includes(r.ref),dl?dl.suggestedFilename():'aucun téléchargement');
-require('fs').writeFileSync('/tmp/fiche-exemple.pdf',pdf||'');
+if(dl)await dl.saveAs('/tmp/fiche-exemple.pdf');
 await ev(()=>{S.sheet=null;S.tab='home';render()});let t=await txt();
 ck('V03','Libellé « Espace accompagnateur »',/Espace accompagnateur/i.test(t)&&!/Espace professionnel/i.test(t));
 r=await ev(()=>{const out=[];document.querySelectorAll('.bk').forEach(c=>{const m=c.innerText.match(/Prestation ([\d,\s\u202f\u00a0]+)€ · commission plateforme −([\d,\s\u202f\u00a0]+)€ · net ([\d,\s\u202f\u00a0]+)€/);if(m){const n=x=>+x.replace(/[\s\u202f\u00a0]/g,'').replace(',','.');out.push(Math.abs(n(m[1])-n(m[2])-n(m[3]))<0.01)}});return out});
@@ -29,7 +29,7 @@ r=await ev(()=>{const c=comp('c1');c.buffer=60;S.role='client';const ex=S.bookin
   const f={start:d.toISOString().slice(0,16),hours:1,cat:c.cats[0],place:'Café de Flore, Paris',ackRules:'on'};const r1=api.create('c1',{...f,start:new Date(end+30*M).getTime()});c.buffer=0;return r1.err||'acceptée'});
 ck('V10','Délai de déplacement de 60 min : demande 30 min après une mission refusée',!!r&&/délai de déplacement|disponible|réservation/.test(r),r);
 // Client : Privilège, cartes cadeaux, assistance, messagerie
-t=await ev(()=>{S.role='client';S.tab='account';render();return document.body.innerText});
+t=await ev(()=>{S.role='client';S.tab='account';let o='';for(const k of ['privilege','cadeaux','privee','profil']){S.accSub=k;render();o+=document.body.innerText}S.accSub=null;render();return o});
 ck('V11','Privilège : pourcentage de frais réduits précisé',/réduits à 10 % au lieu de 15 %/.test(t));
 ck('V12','Cartes cadeaux : montant initial, solde et validité',/Montant initial/.test(t)&&/solde disponible/.test(t)||!/Carte de /.test(t));
 ck('V13','Rubrique confidentialité côté client',/Confidentialité et suppression de compte/i.test(t)&&/Politique de confidentialité/i.test(t));
@@ -38,7 +38,7 @@ ck('V14','Assistance par e-mail proposée, dispositif d\'urgence distinct',/Assi
 r=await ev(()=>{const b=S.bookings.find(x=>x.clientId==='u1'&&S.msgs[x.id]&&S.msgs[x.id].length);open('chat',{id:b.id});render();return{n:document.querySelectorAll('.msg .mt').length,m:document.querySelectorAll('.msg').length}});
 ck('V15','Messagerie : date et heure de chaque message',r.n>0&&r.n>=r.m-1,`${r.n}/${r.m}`);
 // Accompagnateur : profil
-t=await ev(()=>{S.sheet=null;S.role='companion';S.tab='profile';render();return document.body.innerText});
+t=await ev(()=>{S.sheet=null;S.role='companion';S.tab='profile';let o='';for(const k of ['identite','versements','privee','admin']){S.accSub=k;render();o+=document.body.innerText}return o});
 ck('V16','Profil : vérification d\'identité, informations administratives, versements Stripe, confidentialité',['Vérification d\'identité','Informations administratives','Coordonnées bancaires et versements','Confidentialité et suppression de compte'].every(x=>t.toLowerCase().includes(x.toLowerCase())));
 r=await ev(()=>{const f=document.querySelector('form[data-form="adm-info"]');f.legal.value='micro';f.siret.value='123';f.querySelector('button').click();const e=document.getElementById('ai-err');return e&&!e.hidden?e.textContent:'aucune erreur'});
 ck('V17','Dossier administratif : SIRET invalide refusé',/14 chiffres/.test(r),r);

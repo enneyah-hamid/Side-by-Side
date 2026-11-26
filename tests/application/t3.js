@@ -33,13 +33,14 @@ await p.evaluate(()=>{api.declareEnd(S.bookings[0],'companion')});await p.waitFo
 ck('U08','Fin déclarée par l\'accompagnateur seul → double validation en attente',(await p.evaluate(()=>S.bookings[0].status))==='double_attente');
 r=await p.evaluate(()=>api.openDispute(S.bookings[0],'companion','Retard','court','contestee'));ck('U09','Litige : description trop courte refusée',!!r.err);
 // 3. Membre non vérifié : dépôt de pièce d'identité
-p=await page();await login(p,'paul@test.fr');await p.evaluate(()=>{S.tab='account';render()});await p.waitForTimeout(300);
+p=await page();await login(p,'paul@test.fr');await p.evaluate(()=>{S.tab='account';S.accSub='identite';render()});await p.waitForTimeout(300);
 t=await txt(p);ck('U10','Carte « Vérification d\'identité » affichée au membre non vérifié',/Vérification d'identité/.test(t));
 const png=Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==','base64');
 await p.setInputFiles('#id-doc',{name:'cni.png',mimeType:'image/png',buffer:png});await p.setInputFiles('#id-selfie',{name:'selfie.png',mimeType:'image/png',buffer:png});
 await p.click('form[data-form="live-id"] button.pri');await p.waitForTimeout(900);
 const up=await p.evaluate(()=>({u:__db.uploads,c:__db.identity_checks.length}));
 ck('U11','Pièce et selfie envoyés dans le dossier privé du membre',up.u.length===2&&up.u.every(x=>x.startsWith('uN/'))&&up.c===1,up.u.join(' , '));
+await p.evaluate(()=>{S.accSub='privee';render()});
 ck('U12','Rubrique confidentialité (export / suppression) présente',/Confidentialité et suppression de compte/i.test(await txt(p))&&/Exporter mes données/.test(await txt(p)));
 // 4. Administrateur : MFA obligatoire
 p=await page();await login(p,'admin@test.fr');await p.waitForTimeout(600);t=await txt(p);

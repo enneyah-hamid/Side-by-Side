@@ -1,0 +1,50 @@
+const {chromium}=require('playwright');(async()=>{const b=await chromium.launch();const errs=[],R=[];const ck=(id,l,ok,d='')=>{R.push(ok);console.log((ok?'✅ ':'❌ ')+id+' '+l+(d?' — '+d:''))};
+const page=async()=>{const p=await (await b.newContext({viewport:{width:390,height:844}})).newPage();p.on('pageerror',e=>errs.push(e.message));await p.goto('file:///tmp/livetest/index.html');await p.waitForTimeout(2200);return p};
+const login=async(p,e)=>{await p.fill('#lv-mail',e);await p.fill('#lv-pw','Motdepasse1!');await p.click('form[data-form="live-login"] button.pri');await p.waitForTimeout(1200)};
+let p=await page();let t=(await p.evaluate(()=>document.body.innerText)).toLowerCase();
+ck('C01','Écran d\'accueil puis page de connexion (aucune session)',!(await p.evaluate(()=>!!document.getElementById('sbs-splash')))&&t.includes('se connecter'));
+ck('C02','Boutons « Continuer avec Google » et « Continuer avec Apple »',t.includes('continuer avec google')&&t.includes('continuer avec apple'));
+ck('C03','Sélecteur de langue et grands caractères conservés',!!(await p.$('#lang'))&&t.includes('grands caractères'));
+await p.fill('#lv-pw','Secret123');await p.click('[data-a="pw-eye"]');ck('C04','Œil : afficher le mot de passe',(await p.getAttribute('#lv-pw','type'))==='text');
+await p.click('[data-a="pw-eye"]');ck('C05','Œil : masquer de nouveau',(await p.getAttribute('#lv-pw','type'))==='password');
+await p.click('[data-a="oauth"][data-v="google"]');await p.waitForTimeout(400);
+ck('C06','Google non activé côté serveur : message honnête, aucune simulation',/pas encore activée/.test(await p.evaluate(()=>S.toast&&S.toast.text))&&!(await p.evaluate(()=>__db.oauth)));
+await p.evaluate(()=>{__db.googleOn=true;window.Capacitor={isNativePlatform:()=>true,Plugins:{Browser:{open:o=>{window.__opened=o.url;return Promise.resolve()},close:()=>Promise.resolve()}}}});await p.click('[data-a="oauth"][data-v="google"]');await p.waitForTimeout(500);
+const oa=await p.evaluate(()=>__db.oauth);ck('C07','Google activé : connexion Supabase réelle demandée (navigateur sécurisé, retour dans l\'application)',oa&&oa.provider==='google'&&oa.options.redirectTo==='fr.zyntell.sidebyside://auth/callback'&&/authorize\?provider=google/.test(await p.evaluate(()=>window.__opened)),JSON.stringify(oa&&oa.options));
+p=await page();await p.click('[data-a="live-mode"][data-v="reset"]');await p.fill('#lv-mail','sophie@test.fr');await p.click('form[data-form="live-reset"] button.pri');await p.waitForTimeout(400);
+const rs=await p.evaluate(()=>__db.reset);ck('C08','Mot de passe oublié : lien qui ramène dans l\'application',rs&&rs.email==='sophie@test.fr'&&rs.opts.redirectTo==='fr.zyntell.sidebyside://auth/callback');
+await p.evaluate(()=>{__db.codeUser='uC'});await p.evaluate(()=>authReturn('fr.zyntell.sidebyside://auth/callback?code=bon-code'));await p.waitForTimeout(800);
+t=(await p.evaluate(()=>document.body.innerText)).toLowerCase();ck('C09','Retour par le lien : écran « Nouveau mot de passe »',t.includes('nouveau mot de passe'));
+await p.fill('#np1','Nouveau2026!');await p.fill('#np2','Autre2026!');await p.click('form[data-form="live-newpw"] button.pri');ck('C10','Confirmation différente refusée',/ne correspondent pas/.test(await p.textContent('#np-err')));
+await p.fill('#np1','Nouveau2026!');await p.fill('#np2','Nouveau2026!');await p.click('form[data-form="live-newpw"] button.pri');await p.waitForTimeout(800);
+ck('C11','Nouveau mot de passe enregistré, connexion',(await p.evaluate(()=>__db.updated&&__db.updated.password))==='Nouveau2026!'&&(await p.evaluate(()=>S.role))==='client');
+p=await page();await p.evaluate(()=>authReturn('fr.zyntell.sidebyside://auth/callback?error=access_denied&error_description=Email+link+is+invalid+or+has+expired'));
+ck('C12','Lien expiré : message clair',/expiré/.test(await p.evaluate(()=>S.toast&&S.toast.text)));
+// Compte Google sans date de naissance : fin d'inscription obligatoire
+p=await page();await p.evaluate(()=>{__db.users.push({id:'uG',email:'jean@gmail.com',pw:'x',confirmed:true});__db.profiles.push({id:'uG',role:'client',first_name:'Jean',last_name:'Dupont',identity_verified:false,suspended:false,birth_date:null});__db.codeUser='uG'});
+await p.evaluate(()=>authReturn('fr.zyntell.sidebyside://auth/callback?code=bon-code'));await p.waitForTimeout(900);t=(await p.evaluate(()=>document.body.innerText)).toLowerCase();
+ck('C13','Connexion Google : « Finaliser mon inscription » (date de naissance, pays, ville, téléphone, engagements)',t.includes('finaliser mon inscription')&&t.includes('date de naissance'));
+await p.evaluate(()=>{const f=document.querySelector('form[data-form="live-complete"]');f.dob.value='2012-01-01';f.city.value='Rouen';f.tel.value='0612345678';['terms','privacy','charter','adult'].forEach(k=>f[k].checked=true);f.querySelector('button.pri').click()});await p.waitForTimeout(500);
+ck('C14','Mineur : refusé par le serveur',/majeures/.test(await p.evaluate(()=>(document.getElementById('cp-err')||{}).textContent||'')));
+await p.evaluate(()=>{const f=document.querySelector('form[data-form="live-complete"]');f.dob.value='1990-05-05';f.city.value='rouen';f.tel.value='0612345678';['terms','privacy','charter','adult'].forEach(k=>f[k].checked=true);f.querySelector('button.pri').click()});await p.waitForTimeout(1200);
+const pg=await p.evaluate(()=>__db.profiles.find(x=>x.id==='uG'));ck('C15','Inscription complétée : ville normalisée, téléphone international, accès à l\'espace client',pg.birth_date==='1990-05-05'&&pg.city==='Rouen'&&pg.phone==='+33612345678'&&(await p.evaluate(()=>S.role))==='client',JSON.stringify(pg));
+// Inscription par e-mail : retour vers l'application, pays, langue, fuseau
+p=await page();await p.click('[data-a="signup"]');await p.waitForTimeout(200);
+await p.evaluate(()=>{const f=document.querySelector('form[data-form="su3"]');f.first.value='Ana';f.last.value='Silva';f.dob.value='1991-02-02';f.country.value='PT';f.city.value='lisbonne';f.querySelector('button.pri').click()});await p.waitForTimeout(200);
+await p.evaluate(()=>{const f=document.querySelector('form[data-form="su3"]');f.email.value='ana@test.pt';f.dial.value='PT';f.tel.value='912345678';f.pw.value='Bonjour2026x';f.pw2.value='Bonjour2026x';f.querySelector('button.pri').click()});await p.waitForTimeout(200);
+await p.evaluate(()=>{const f=document.querySelector('form[data-form="su3"]');['cgu','privacy','charte','adult'].forEach(k=>f[k].checked=true);f.querySelector('button.pri').click()});await p.waitForTimeout(600);
+const m=await p.evaluate(()=>window.__signup);ck('C16','Création du compte : pays, ville, langue, fuseau, téléphone international',m&&m.country==='PT'&&m.city==='Lisbonne'&&m.time_zone==='Europe/Lisbon'&&m.phone==='+351912345678'&&m.terms===true,JSON.stringify(m));
+// Demandes de sortie : client publie, accompagnateur cherche dans une autre ville
+p=await page();await login(p,'sophie@test.fr');await p.evaluate(()=>open('reqnew'));await p.evaluate(()=>render());
+await p.evaluate(()=>{const f=document.querySelector('form[data-form="req-new"]');f.city.value='paris';f.date.value=dayKey(now()+4*DAY);f.time.value='15:00';f.dur.value='2';f.querySelector('button').click()});await p.waitForTimeout(500);
+const rq=await p.evaluate(()=>__db.open_requests[0]);ck('C17','Demande de sortie publiée sur le serveur',rq&&rq.city==='Paris'&&rq.client_id==='uC'&&rq.hours===2,JSON.stringify(rq));
+p=await page();await p.evaluate(()=>__db.open_requests.push({id:'r1',client_id:'uC',city:'Paris',country:'FR',starts_at:new Date(Date.now()+4*864e5).toISOString(),hours:2,category:'musees',note:null,status:'ouverte'}));await login(p,'camille@test.fr');await p.evaluate(()=>{S.tab='requests';render()});await p.evaluate(()=>{const f=document.querySelector('form[data-form="req-search"]');f.city.value='Paris';f.querySelector('button').click()});await p.waitForTimeout(500);
+t=(await p.evaluate(()=>document.body.innerText)).toLowerCase();ck('C18','Accompagnateur : recherche dans une autre ville (Paris)',(await p.evaluate(()=>__db.searched))==='Paris'&&t.includes('sophie · paris'));
+await p.evaluate(()=>{const f=document.querySelector('form[data-form="req-offer"]');f.msg.value='Avec plaisir';f.querySelector('button').click()});await p.waitForTimeout(400);
+ck('C19','Proposition envoyée au serveur',(await p.evaluate(()=>__db.request_offers.length))===1);
+// Mon compte connecté : statuts honnêtes
+p=await page();await login(p,'sophie@test.fr');await p.evaluate(()=>{S.tab='account';S.accSub='profil';render()});t=(await p.evaluate(()=>document.querySelector('main').innerText)).toLowerCase();
+ck('C20','Téléphone jamais affiché comme vérifié sans vérification réelle',t.includes('numéro non vérifié')&&t.includes('adresse confirmée'));
+await p.evaluate(()=>{S.accSub=null;render()});ck('C21','Un seul bouton « Se déconnecter »',(await p.evaluate(()=>document.querySelectorAll('[data-a="logout"]').length))===1);
+ck('C00','Aucune erreur JavaScript',errs.length===0,errs.join(' | '));
+console.log(`\n${R.filter(Boolean).length}/${R.length} tests réussis`);await b.close()})();

@@ -4,7 +4,7 @@ await p.goto('file:///tmp/demo.html');await p.waitForTimeout(900);const R=[];con
 const dl=async(sel)=>{const [d]=await Promise.all([p.waitForEvent('download',{timeout:5000}).catch(()=>null),p.click(sel)]);if(!d)return null;const path='/tmp/t8/'+d.suggestedFilename();await d.saveAs(path);return{name:d.suggestedFilename(),buf:fs.readFileSync(path)}};
 const txt=async(sel='body')=>(await ev(s=>document.querySelector(s).innerText,sel)).toLowerCase();
 // ----- Accompagnateur : Mon assurance -----
-await ev(()=>{S.role='companion';S.tab='profile';render()});let t=await txt();
+await ev(()=>{S.role='companion';S.tab='profile';S.accSub='assurance';render()});let t=await txt();
 ck('M01','Rubrique « Mon assurance » dans le profil avec statut',t.includes('mon assurance')&&t.includes('validée')&&t.includes("n'est pas un assureur"));
 ck('M02','Champs demandés présents',await ev(()=>{const f=document.querySelector('form[data-form="ins-up"]');return !!(f.insurer&&f.policy&&f.start&&f.end&&f.doc&&f.covers)&&f.doc.accept.includes('application/pdf')&&f.doc.accept.includes('image/png')}));
 await ev(()=>{const f=document.querySelector('form[data-form="ins-up"]');f.insurer.value='MAIF';f.policy.value='RC-2027-55';f.start.value='2026-11-01';f.end.value='2027-10-31';f.querySelector('button.pri').click()});

@@ -1,7 +1,7 @@
 const {chromium}=require('playwright');(async()=>{const b=await chromium.launch();const errs=[],R=[];const ck=(id,l,ok,d='')=>{R.push(ok);console.log((ok?'✅ ':'❌ ')+id+' '+l+(d?' — '+d:''))};
 const page=async()=>{const ctx=await b.newContext({viewport:{width:400,height:860},acceptDownloads:true});const p=await ctx.newPage();p.on('pageerror',e=>errs.push(e.message));await p.goto('file:///tmp/livetest/index.html');await p.waitForTimeout(800);return p};
 const login=async(p,e)=>{await p.fill('#lv-mail',e);await p.fill('#lv-pw','Motdepasse1!');await p.click('form[data-form="live-login"] button.pri');await p.waitForTimeout(1000)};
-let p=await page();await login(p,'camille@test.fr');await p.evaluate(()=>{S.tab='profile';render()});await p.waitForTimeout(400);let t=(await p.evaluate(()=>document.body.innerText)).toLowerCase();
+let p=await page();await login(p,'camille@test.fr');await p.evaluate(()=>{S.tab='profile';S.accSub='assurance';render()});await p.waitForTimeout(400);let t=(await p.evaluate(()=>document.body.innerText)).toLowerCase();
 ck('L10','Mode connecté : « Mon assurance », aucune attestation',t.includes('mon assurance')&&t.includes('aucune attestation'));
 await p.setInputFiles('#in-f',{name:'rc.pdf',mimeType:'application/pdf',buffer:Buffer.from('%PDF-1.4 rc')});
 await p.evaluate(()=>{const f=document.querySelector('form[data-form="ins-up"]');f.insurer.value='MAIF';f.policy.value='RC-778899';f.start.value='2026-11-01';f.end.value='2027-10-31';f.covers.checked=true;f.querySelector('button.pri').click()});await p.waitForTimeout(800);
