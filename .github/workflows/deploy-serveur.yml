@@ -14,6 +14,12 @@ jobs:
     env:
       SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN || secrets.CODE }}
       PROJECT: xaogettvtlhfejnvmowk
+      RESEND_API_KEY: ${{ secrets.RESEND_API_KEY }}
+      MAIL_FROM_ADDRESS: ${{ secrets.MAIL_FROM_ADDRESS }}
+      GOOGLE_CLIENT_ID: ${{ secrets.GOOGLE_CLIENT_ID }}
+      GOOGLE_CLIENT_SECRET: ${{ secrets.GOOGLE_CLIENT_SECRET }}
+      APPLE_CLIENT_ID: ${{ secrets.APPLE_CLIENT_ID }}
+      APPLE_SECRET: ${{ secrets.APPLE_SECRET }}
     steps:
       - uses: actions/checkout@v4
         with: { ref: "${{ github.event.workflow_run.head_sha || github.sha }}" }
@@ -28,3 +34,10 @@ jobs:
             case "$n" in stripe-webhook|release-payout|sweeper|monthly-invoice) flag="--no-verify-jwt";; *) flag="";; esac
             echo "→ $n $flag"; npx -y supabase@2 functions deploy "$n" --project-ref "$PROJECT" --use-api $flag
           done
+      - name: Clé d'envoi des e-mails pour les fonctions serveur (si le secret RESEND_API_KEY existe)
+        working-directory: serveur
+        run: |
+          if [ -z "$SUPABASE_ACCESS_TOKEN" ] || [ -z "$RESEND_API_KEY" ]; then echo "Envoi d'e-mails non configuré."; exit 0; fi
+          npx -y supabase@2 secrets set RESEND_API_KEY="$RESEND_API_KEY" MAIL_FROM="Side by Side <${MAIL_FROM_ADDRESS:-no-reply@zyntell.fr}>" --project-ref "$PROJECT" >/dev/null && echo "Clé Resend enregistrée pour les fonctions serveur."
+      - name: Réglages de connexion (liens de retour, e-mails Side by Side, Google, Apple)
+        run: node scripts/auth-config.mjs

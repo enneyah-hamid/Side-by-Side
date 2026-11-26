@@ -2,12 +2,34 @@
   "appId": "fr.zyntell.sidebyside",
   "appName": "Side by Side",
   "webDir": "www",
-  "android": { "allowMixedContent": false },
-  "ios": { "contentInset": "never" },
-  "server": { "androidScheme": "https" },
+  "android": {
+    "allowMixedContent": false,
+    "adjustMarginsForEdgeToEdge": "force"
+  },
+  "ios": {
+    "contentInset": "never"
+  },
+  "server": {
+    "androidScheme": "https"
+  },
   "plugins": {
-    "SplashScreen": { "launchShowDuration": 1200, "backgroundColor": "#060D1F", "showSpinner": false },
-    "StatusBar": { "style": "DARK", "backgroundColor": "#060D1F" },
-    "PushNotifications": { "presentationOptions": ["badge", "sound", "alert"] }
+    "SplashScreen": {
+      "launchShowDuration": 1500,
+      "launchAutoHide": true,
+      "backgroundColor": "#060D1F",
+      "showSpinner": false,
+      "androidScaleType": "CENTER_CROP"
+    },
+    "StatusBar": {
+      "style": "DARK",
+      "backgroundColor": "#060D1F"
+    },
+    "PushNotifications": {
+      "presentationOptions": [
+        "badge",
+        "sound",
+        "alert"
+      ]
+    }
   }
 }

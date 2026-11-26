@@ -1,12 +1,12 @@
 // Faux serveur Supabase pour tester le mode connecté sans réseau
 (function(){
 const db={users:[{id:'uA',email:'admin@test.fr',pw:'Motdepasse1!',confirmed:true},{id:'uN',email:'paul@test.fr',pw:'Motdepasse1!',confirmed:true},{id:'uC',email:'sophie@test.fr',pw:'Motdepasse1!',confirmed:true},{id:'uP',email:'camille@test.fr',pw:'Motdepasse1!',confirmed:true}],
- profiles:[{id:'uC',role:'client',first_name:'Sophie',last_name:'M',city:'Paris',phone:'0612345678',identity_verified:true,suspended:false,referral_code:'ABCD1234'},
-           {id:'uP',role:'companion',first_name:'Camille',last_name:'D',city:'Paris',identity_verified:true,suspended:false},
-           {id:'uA',role:'admin',first_name:'Hamid',last_name:'E',city:'Maromme',identity_verified:true,suspended:false},
-           {id:'uN',role:'client',first_name:'Paul',last_name:'N',city:'Paris',identity_verified:false,suspended:false}],
+ profiles:[{id:'uC',role:'client',first_name:'Sophie',last_name:'M',city:'Paris',phone:'0612345678',identity_verified:true,suspended:false,referral_code:'ABCD1234',birth_date:'1980-01-01'},
+           {id:'uP',role:'companion',first_name:'Camille',last_name:'D',city:'Paris',identity_verified:true,suspended:false,birth_date:'1992-03-04'},
+           {id:'uA',role:'admin',first_name:'Hamid',last_name:'E',city:'Maromme',identity_verified:true,suspended:false,birth_date:'1980-01-01'},
+           {id:'uN',role:'client',first_name:'Paul',last_name:'N',city:'Paris',identity_verified:false,suspended:false,birth_date:'1985-01-01'}],
  companions:[{id:'uP',first_name:'Camille',city:'Paris',area:'Le Marais',bio:'Guide passionnée',hourly_rate:35,tier:'Standard',languages:['Français','Anglais'],categories:['shopping','musees','seniors'],included:[],excluded:[],work_days:[0,1,2,3,4,5,6],hour_from:9,hour_to:21,rating:5,reviews:2}],
- companion_insurances:[],bookings:[],messages:[],notifications:[],tax_certificates:[{year:2025,version:1,data:{quarters:[{missions:1,consideration:61,fees:14,taxes:0},{missions:0,consideration:0,fees:0,taxes:0},{missions:0,consideration:0,fees:0,taxes:0},{missions:1,consideration:84,fees:21,taxes:0}],missions:2,consideration:145,fees:35},published_at:'2026-01-20T10:00:00Z'}],companions_rows:[],identity_checks:[],uploads:[],calls:[],seq:1100,aal:'aal1',factor:null};
+ companion_insurances:[],open_requests:[],request_offers:[],bookings:[],messages:[],notifications:[],tax_certificates:[{year:2025,version:1,data:{quarters:[{missions:1,consideration:61,fees:14,taxes:0},{missions:0,consideration:0,fees:0,taxes:0},{missions:0,consideration:0,fees:0,taxes:0},{missions:1,consideration:84,fees:21,taxes:0}],missions:2,consideration:145,fees:35},published_at:'2026-01-20T10:00:00Z'}],companions_rows:[],identity_checks:[],uploads:[],calls:[],seq:1100,aal:'aal1',factor:null};
 let session=null;const subs=[];window.__db=db;
 const ok=d=>Promise.resolve({data:d,error:null}),ko=m=>Promise.resolve({data:null,error:{message:m}}),ko2=(st,m)=>Promise.resolve({data:null,error:{message:m,context:{json:async()=>({error:m})}}});
 const prof=()=>db.profiles.find(p=>p.id===session.user.id);
@@ -18,6 +18,8 @@ function q(table){let rows=null,filters=[],single=false,op='select',payload=null
       return Promise.resolve(out).then(res,rej)}};return api}
 function rpc(name){const me=session&&session.user.id;
   if(name==='my_tax_year')return ok([{month:3,quarter:1,missions:2,gross:140,fees:28,tips:5,annex:0},{month:11,quarter:4,missions:1,gross:105,fees:21,tips:0,annex:0}]);
+  if(name==='search_open_requests'){const c=(arguments[1]||{}).p_city;db.searched=c;return ok((db.open_requests||[]).filter(r=>!c||r.city.toLowerCase()===String(c).toLowerCase()).map(r=>({id:r.id,city:r.city,country:r.country,starts_at:r.starts_at,hours:r.hours,category:r.category,note:r.note,client_first_name:'Sophie',offers:0,mine:false})))}
+  if(name==='my_request_offers')return ok((db.request_offers||[]).map(o=>({request_id:o.request_id,companion_id:o.companion_id,first_name:'Camille',hourly_rate:35,message:o.message,status:'proposee'})));
   if(name==='tax_profile_issues')return ok([{field:'NIF',message:'Numéro fiscal manquant (il figure sur votre avis d\'impôt)',blocking:false}]);
   if(name==='my_tax_breakdown')return ok([{missions:3,gross:245,commission:49,annex:0,tips:5,net_paid:201,declarable:201,cancelled:1,taxes:0}]);
   if(name==='companions_directory')return ok(db.companions);
@@ -36,6 +38,7 @@ function invoke(fn,{body}){const me=session&&session.user.id;let r;db.calls.push
   if(fn==='tax-admin'){if(db.aal!=='aal2')return ko2(403,'Double authentification requise');db.calls.push({fn,body});
     if(body.action==='overview')return ok({year:body.year,companions_total:12,concerned:3,total_missions:9,total_consideration:812,total_fees:203,sellers:[{name:'Camille D',missions:3,consideration:279,fees:49,issues:0}],issues:[{who:'Zyntell (opérateur)',field:'SIREN',blocking:true,message:'SIREN manquant'}],blocking:1,declarations:[{id:'d1',version:1,kind:'initiale',status:'a_corriger',message_ref_id:'OP_2025_123456789_001',sellers:3,total_consideration:812,errors:[{code:'80010',details:'TIN invalide',doc_ref_id:'OP_V1'}]}],certificates_published:3,deadline:'x',portal:'https://www.impots.gouv.fr',stage:'a_corriger',breakdown:[{companion_id:'uP',name:'Camille D',missions:3,client_paid:330.5,client_fees:36.75,client_vat:7.35,gross:245,commission:49,annex:0,tips:5,net_paid:201,declarable:201,cancelled:1,refunds:82.6,taxes:0}],receipts:[{id:'r1',declaration_id:'d1',official_status:'accepte_avec_erreurs',reference:'CR-2026-7',file_name:'cr.xml',created_at:'2026-01-25T10:00:00Z'}]});
     if(body.action==='export')return ok({csv:'\ufeffAnnée;Nom',name:'x.csv'});if(body.action==='certificates_bundle')return ok({certificates:[{companion_id:'uP',year:body.year,version:1,data:{name:'Camille D',quarters:[{missions:2,consideration:117,fees:28,taxes:0},{missions:0,consideration:0,fees:0,taxes:0},{missions:0,consideration:0,fees:0,taxes:0},{missions:1,consideration:84,fees:21,taxes:0}],missions:3,consideration:201,fees:49},nif:'1234567890123',postal_address:'8 rue de Bretagne, 75003 Paris',tax_country:'FR'}]});if(body.action==='import_receipt')return ok({ok:true,status:'a_corriger',official:'accepte_avec_erreurs',errors:[{code:'80010',details:'TIN invalide',doc_ref_id:'X'}]});return ok({ok:true})}
+  if(fn==='complete-profile'){const p=prof();if(p.birth_date)return ko2(409,'Profil déjà complété');Object.assign(p,{birth_date:body.birth_date,role:body.role,city:body.city,country:body.country,phone:body.phone});return ok({ok:true})}
   if(fn==='insurance'){if(db.aal!=='aal2')return ko2(403,'Double authentification requise');
     if(body.action==='list')return ok({rows:db.companion_insurances.map(i=>({...i,name:'Camille D',state:i.status==='validee'?'valide':i.status})),uninsured:[{companion_id:'uP',name:'Camille D'}],affected:[{booking_id:'b9',ref:'CMP-1200',companion_id:'uP',companion_name:'Camille D',starts_at:new Date(Date.now()+5*864e5).toISOString(),status:'confirmee'}],history:[],required:true,counts:{assures:0,attente:db.companion_insurances.filter(i=>i.status==='en_attente').length,expirees:0,bientot:0,sans:1}});
     if(body.action==='review'){const i=db.companion_insurances.find(x=>x.id===body.id);if(!body.approve&&!(body.reason||'').trim())return ko2(400,'Indiquez le motif du refus');i.status=body.approve?'validee':'refusee';i.refusal_reason=body.reason||null;return ok({ok:true})}
@@ -58,16 +61,20 @@ function invoke(fn,{body}){const me=session&&session.user.id;let r;db.calls.push
   subs.forEach(f=>f());return ok(r)}
 window.supabase={createClient(){return{
   auth:{getSession:()=>ok({session}),getUser:()=>ok({user:session&&session.user}),
-    signInWithPassword:({email,password})=>{const u=db.users.find(x=>x.email===email&&x.pw===password);if(!u)return ko('Invalid login credentials');if(!u.confirmed)return ko('Email not confirmed');session={user:{id:u.id,email}};return ok({session})},
+    signInWithPassword:({email,password})=>{const u=db.users.find(x=>x.email===email&&x.pw===password);if(!u)return ko('Invalid login credentials');if(!u.confirmed)return ko('Email not confirmed');session={user:{id:u.id,email,email_confirmed_at:'2026-01-01'}};return ok({session})},
     signUp:({email,password,options})=>{if(db.users.some(u=>u.email===email))return ko('User already registered');const id='u'+Date.now();db.users.push({id,email,pw:password,confirmed:false});const m=options.data;
       if(new Date(m.birth_date)>new Date(Date.now()-18*365.25*864e5))return ko('Database error saving new user');
       db.profiles.push({id,role:m.role==='admin'?'client':m.role,first_name:m.first_name,last_name:m.last_name,city:m.city,phone:m.phone,identity_verified:false,suspended:false});window.__signup=m;return ok({user:{id}})},
     signOut:()=>{session=null;db.aal='aal1';return ok({})},
     mfa:{getAuthenticatorAssuranceLevel:()=>ok({currentLevel:db.aal}),listFactors:()=>ok({totp:db.factor&&db.factor.verified?[{id:'f1',status:'verified'}]:[],all:[]}),
       enroll:()=>{db.factor={id:'f1',verified:false};return ok({id:'f1',totp:{qr_code:'data:image/svg+xml;utf-8,<svg xmlns=%22http://www.w3.org/2000/svg%22 width=%2210%22 height=%2210%22/>',secret:'JBSWY3DPEHPK3PXP'}})},
-      challengeAndVerify:({code})=>{if(code!=='123456')return ko('Invalid TOTP code');db.factor.verified=true;db.aal='aal2';return ok({})},unenroll:()=>ok({})},resetPasswordForEmail:()=>ok({}),onAuthStateChange:()=>({data:{subscription:{unsubscribe(){}}}})},
+      challengeAndVerify:({code})=>{if(code!=='123456')return ko('Invalid TOTP code');db.factor.verified=true;db.aal='aal2';return ok({})},unenroll:()=>ok({})},resetPasswordForEmail:(email,opts)=>{db.reset={email,opts};return ok({})},onAuthStateChange:(f)=>{db.authCb=f;return {data:{subscription:{unsubscribe(){}}}}},
+    signInWithOAuth:(o)=>{db.oauth=o;return ok({url:'https://test.supabase.co/auth/v1/authorize?provider='+o.provider})},
+    exchangeCodeForSession:(code)=>{if(code!=='bon-code')return ko('invalid flow state');const u=db.users.find(x=>x.id===db.codeUser);session={user:{id:u.id,email:u.email,email_confirmed_at:'2026-11-26'}};return ok({session})},
+    setSession:()=>ok({}),updateUser:(p)=>{db.updated=p;return ok({user:session&&session.user})}},
   from:q,rpc,functions:{invoke},
   storage:{from:()=>({upload:(path)=>{db.uploads.push(path);return ok({path})}})},
   channel(){const ch={on(){return ch},subscribe(){subs.push(()=>{});return ch}};return ch},removeChannel(){}}}};
 window.SBS_CONFIG={url:'https://test.supabase.co',key:'sb_publishable_test'};
+const _f=window.fetch;window.fetch=(u,o)=>String(u).includes('/auth/v1/settings')?Promise.resolve(new Response(JSON.stringify({external:{google:!!db.googleOn,apple:false,email:true}}),{headers:{'Content-Type':'application/json'}})):_f(u,o);
 })();

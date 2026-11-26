@@ -2,9 +2,9 @@
 import { admin, json, serve, currentUser, event, notify, rateLimit, HttpError } from "../_shared/clients.ts";
 import { price } from "../_shared/pricing.ts";
 
-// Jour (lundi = 0) et heure décimale à Paris, quel que soit le fuseau du téléphone
-function paris(d: Date) {
-  const p = Object.fromEntries(new Intl.DateTimeFormat("en-GB", { timeZone: "Europe/Paris", weekday: "short", hour: "2-digit", minute: "2-digit", year: "numeric", month: "2-digit", day: "2-digit", hourCycle: "h23" })
+// Jour (lundi = 0) et heure décimale à l'heure locale de l'accompagnateur (Paris par défaut), quel que soit le fuseau du téléphone
+function paris(d: Date, tz = "Europe/Paris") {
+  const p = Object.fromEntries(new Intl.DateTimeFormat("en-GB", { timeZone: tz, weekday: "short", hour: "2-digit", minute: "2-digit", year: "numeric", month: "2-digit", day: "2-digit", hourCycle: "h23" })
     .formatToParts(d).map((x) => [x.type, x.value]));
   return { wd: ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"].indexOf(p.weekday), h: Number(p.hour) + Number(p.minute) / 60, day: `${p.year}-${p.month}-${p.day}` };
 }
@@ -12,9 +12,10 @@ function paris(d: Date) {
 serve(async (req) => {
   const me = await currentUser(req);
   if (!me.identity_verified) throw new HttpError(403, "Vérifiez d'abord votre identité");
+  if (!me.birth_date) throw new HttpError(403, "Complétez d'abord votre profil (date de naissance)");
   if (me.role === "companion") throw new HttpError(403, "Un compte accompagnateur ne peut pas réserver");
   await rateLimit(me.id, "booking", 15, 24 * 60);                       // pas plus de 15 demandes par 24 h
-  const { companion_id, category, starts_at, hours, place, language, note, annex = 0, experience_id, beneficiary } = await req.json();
+  const { companion_id, category, starts_at, hours, place, language, note, annex = 0, experience_id, beneficiary, request_id } = await req.json();
   const { data: s } = await admin.from("settings").select("*").single();
   const { data: c } = await admin.from("companions").select("*, profiles!companions_id_fkey(suspended, first_name)").eq("id", companion_id).maybeSingle();
   if (!c || !c.verified || !c.video_interview_ok || c.profiles?.suspended || companion_id === me.id) throw new HttpError(404, "Accompagnateur indisponible");
@@ -28,7 +29,8 @@ serve(async (req) => {
   if (!c.categories.includes(category)) throw new HttpError(400, "Activité non proposée");
   if (note && String(note).length > 1000) throw new HttpError(400, "Message trop long");
   // Disponibilités de l'accompagnateur (jours, horaires, jours bloqués) à l'heure de Paris
-  const P = paris(start);
+  let tz = "Europe/Paris"; try { new Intl.DateTimeFormat("en-GB", { timeZone: c.time_zone ?? tz }); tz = c.time_zone ?? tz; } catch (_) { /* fuseau invalide : Paris */ }
+  const P = paris(start, tz);
   if (!(c.work_days ?? []).map(Number).includes(P.wd)) throw new HttpError(400, `${c.profiles?.first_name ?? "L'accompagnateur"} n'est pas disponible ce jour-là`);
   if (P.h < c.hour_from || P.h + h > c.hour_to) throw new HttpError(400, `Disponible de ${c.hour_from} h à ${c.hour_to} h`);
   const { data: blocked } = await admin.from("companion_blocked_days").select("day").eq("companion_id", companion_id).eq("day", P.day);
@@ -58,6 +60,11 @@ serve(async (req) => {
   }).select().single();
   if (error) { if (error.code === "23P01") throw new HttpError(409, "Créneau déjà réservé"); if (error.code === "P0010") throw new HttpError(409, "Accompagnateur momentanément indisponible (assurance à jour en attente)"); throw error; }
   await event(b.id, "en_attente", me.id, "demande créée");
+  // Réservation issue d'une demande de sortie publiée : la demande est pourvue, la proposition retenue
+  if (request_id) {
+    const { data: o } = await admin.from("open_requests").update({ status: "pourvue" }).eq("id", request_id).eq("client_id", me.id).eq("status", "ouverte").select("id");
+    if (o?.length) await admin.from("request_offers").update({ status: "retenue" }).eq("request_id", request_id).eq("companion_id", companion_id);
+  }
   await notify(companion_id, `Nouvelle demande ${b.ref} de ${me.first_name}.`, b.id, "reservation");
   return json({ booking: b });
 });

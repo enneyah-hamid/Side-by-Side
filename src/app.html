@@ -437,6 +437,51 @@ label.row{flex-wrap:nowrap;align-items:flex-start}label.row input{margin-top:3px
 ul.tight{margin:0;padding-inline-start:18px;display:flex;flex-direction:column;gap:4px}
 .btn.xs{padding:5px 10px;font-size:.76rem}.slot{border-color:var(--gold);color:var(--gold)}
 
+
+/* ===== V2.9 : écran d'accueil animé, connexion, inscription en 3 étapes, recherche, Mon compte, ergonomie mobile ===== */
+#sbs-splash{position:fixed;inset:0;z-index:9999;display:grid;place-items:center;background:radial-gradient(120% 90% at 50% 35%,#13244A 0%,#0B1730 45%,#060D1F 100%);transition:opacity .5s ease,visibility .5s}
+#sbs-splash.out{opacity:0;visibility:hidden}
+#sbs-splash .sp-in{display:flex;flex-direction:column;align-items:center;gap:10px;animation:spRise .9s cubic-bezier(.2,.7,.2,1) both}
+#sbs-splash .sp-mark{width:104px;height:104px;border-radius:28px;display:grid;place-items:center;border:1.5px solid rgba(212,175,106,.75);box-shadow:0 0 0 8px rgba(212,175,106,.06),0 18px 44px rgba(0,0,0,.45)}
+#sbs-splash .sp-mark svg{width:64px;height:64px;fill:#D4AF6A}
+#sbs-splash .sp-name{font-family:var(--f-display,Georgia,serif);letter-spacing:.32em;color:#D4AF6A;font-size:1.45rem;margin-top:12px;padding-left:.32em}
+#sbs-splash .sp-by{font-family:var(--f-display,Georgia,serif);font-style:italic;color:#E9D7AE;opacity:.85}
+#sbs-splash .sp-line{width:0;height:1px;background:linear-gradient(90deg,transparent,#D4AF6A,transparent);animation:spLine 1s .35s ease forwards;margin-top:10px}
+@keyframes spRise{from{opacity:0;transform:translateY(10px) scale(.97)}to{opacity:1;transform:none}}
+@keyframes spLine{to{width:150px}}
+@media (prefers-reduced-motion:reduce){#sbs-splash .sp-in,#sbs-splash .sp-line{animation:none}#sbs-splash .sp-line{width:150px}}
+/* Mot de passe : œil afficher / masquer */
+.pwwrap{position:relative;display:flex}.pwwrap input{flex:1;min-width:0;padding-inline-end:52px}
+.eye{position:absolute;inset-inline-end:4px;top:50%;transform:translateY(-50%);width:44px;height:44px;border:0;background:none;color:var(--muted);display:grid;place-items:center;cursor:pointer;border-radius:10px}
+.eye svg{width:22px;height:22px;fill:none;stroke:currentColor;stroke-width:1.8;stroke-linecap:round}.eye.on{color:var(--gold)}.eye.on svg path{stroke-dasharray:none}
+.eye.on::after{content:"";position:absolute;width:24px;height:1.8px;background:currentColor;transform:rotate(-45deg);border-radius:2px}
+/* Google et Apple */
+.oauth{width:100%;display:flex;flex-direction:column;gap:10px;margin-top:6px}.oauth .or{display:flex;align-items:center;gap:12px;color:var(--muted);font-size:.8rem}.oauth .or::before,.oauth .or::after{content:"";flex:1;height:1px;background:var(--line)}
+.oauth-btn{display:flex;align-items:center;justify-content:center;gap:10px;min-height:50px;background:#fff;color:#1F1F1F;border:1px solid #DADCE0;font-weight:600}.oauth-btn svg{width:20px;height:20px}
+.oauth-btn.apple{background:#000;color:#fff;border-color:#000}
+/* Inscription : progression */
+.suprog{display:flex;flex-direction:column;gap:8px}.suprog .bar{height:6px;border-radius:99px;background:var(--line);overflow:hidden}.suprog .bar i{display:block;height:100%;background:linear-gradient(90deg,var(--gold),#E9D7AE);border-radius:99px;transition:width .35s ease}
+.sunav{position:sticky;bottom:0;z-index:5;gap:10px;flex-wrap:nowrap;background:var(--bg);padding-block:10px calc(10px + env(safe-area-inset-bottom,0px));margin-inline:-2px}
+/* Accueil : question principale */
+.hsearch2 .hq{font-size:clamp(1.25rem,5.4vw,1.6rem);text-wrap:balance}.hsearch2 .two{gap:10px}.srch-sum{flex-wrap:wrap;gap:8px}.nores{border-color:rgba(212,175,106,.45)}
+/* Mon compte : menu */
+.accmenu{padding:4px 0;display:flex;flex-direction:column}
+.accrow{display:flex;align-items:center;gap:14px;width:100%;text-align:start;background:none;border:0;border-bottom:1px solid var(--line);color:var(--fg);padding:14px 16px;cursor:pointer;font:inherit;min-height:60px}
+.accmenu .accrow:last-child{border-bottom:0}.accrow small{display:block;color:var(--muted);font-size:.78rem;margin-top:2px;line-height:1.3}.accrow b{font-weight:650}
+.accico{width:40px;height:40px;flex:none;border-radius:12px;display:grid;place-items:center;background:var(--gold-soft,rgba(212,175,106,.12));border:1px solid rgba(212,175,106,.35)}
+.accico svg{width:21px;height:21px;fill:none;stroke:var(--gold);stroke-width:1.7;stroke-linecap:round;stroke-linejoin:round}.chev{color:var(--muted);font-size:1.4rem}
+.accback{background:none;border:0;color:var(--gold);font:600 .95rem var(--f-body);padding:8px 0;cursor:pointer;align-self:flex-start;min-height:44px}
+.acchead{gap:12px}.accav{width:52px;height:52px;border-radius:50%;object-fit:cover;border:1.5px solid var(--gold)}
+/* Sélecteurs de fichiers aux couleurs de l'application */
+input[type=file]{font:inherit;color:var(--muted);max-width:100%;padding:8px;border:1px dashed rgba(212,175,106,.55);border-radius:14px;background:rgba(212,175,106,.05);width:100%}
+input[type=file]::file-selector-button{font:600 .9rem var(--f-body);color:#060D1F;background:var(--gold);border:0;border-radius:999px;padding:10px 16px;margin-inline-end:12px;cursor:pointer}
+.filepick{position:relative;display:inline-flex;align-items:center;cursor:pointer}.filepick input{position:absolute;inset:0;opacity:0;width:100%;cursor:pointer;padding:0;border:0}
+.filepick span{display:inline-block;font:600 .9rem var(--f-body);color:var(--gold);border:1px solid var(--gold);border-radius:999px;padding:10px 16px;max-width:60vw;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+/* Zones de sécurité Android et iOS, clavier */
+main{padding-bottom:calc(96px + env(safe-area-inset-bottom,0px))}
+html.kbd nav.tabs{transform:translateY(calc(100% + 2px))}
+.two>*{min-width:0}
+.btn{min-height:44px}
 </style>
 
 <div id="splash" aria-hidden="true"><div class="mono"><svg class="mark" viewBox="0 0 40 40" aria-hidden="true"><circle cx="14.5" cy="11" r="4.2"/><circle cx="25.5" cy="11" r="4.2"/><rect x="10.3" y="18" width="8.4" height="17" rx="4.2"/><rect x="21.3" y="18" width="8.4" height="17" rx="4.2"/></svg></div><b>Side by Side</b><span class="tagline">moments</span><small class="byz">Groupe Zyntell</small></div>
@@ -760,7 +805,7 @@ function seed(){
   seedV19();b5.tip=10;
   seedV20();
   seedV22();S.comfort=!!window.__comfort;
-  seedV23();seedFix();v26Init();v27Init();v28Init();EXTRA_SHEETS['live-export']=(s,h)=>liveSheets(s,h);EXTRA_SHEETS['pv-delete']=(s,h)=>v26Sheets(s,h);
+  seedV23();seedFix();v26Init();v27Init();v28Init();v29Init();EXTRA_SHEETS['live-export']=(s,h)=>liveSheets(s,h);EXTRA_SHEETS['pv-delete']=(s,h)=>v26Sheets(s,h);
 }
 function comp(id){return S.companions.find(c=>c.id===id)}
 function endOf(b){return b.start+(b.hours*60+b.extMins)*M}
@@ -911,14 +956,14 @@ function _render(){
   const roleName={client:S.biz?'Espace Entreprise · '+S.biz.name:'Espace Client · '+(S.users.u1&&S.users.u1.name||''),companion:'Espace Accompagnateur · '+((comp('c1')||{}).name||''),admin:'Administration Side by Side'}[S.role];
   let body='';
   if(S.role==='admin'&&!S.adminOk)body=mfa();
-  else body=({client:{home:cHome,explore:cExplore,bookings:cBookings,messages:inbox,favs:cFavs,account:()=>cAccount()+comfortCard()+privCard()+giftsCard()+refCard()+bizCard()+logoutBlock()},companion:{home:pHome,requests:pRequests,agenda:pAgenda,messages:inbox,earnings:()=>pEarnings()+pYearCard()+tipsCard()+pExpCard(),profile:()=>pProfile()+pPhotoCard()+logoutBlock()},admin:{dashboard:()=>aPhoneSearch()+aDash()+aSupport(),disputes:()=>aDisputes()+aDecisions(),users:()=>aVerif()+aGalReview()+aExpReview()+aBiz()+aUsers(),settings:()=>aSettings()+aAdmins()+aPhotoTool()+logoutBlock(),audit:aAudit}}[S.role][S.tab]||(()=>''))();
+  else body=({client:{home:cHome,explore:cExplore,bookings:cBookings,messages:inbox,favs:cFavs,account:()=>accPage('client')},companion:{home:pHome,requests:pRequests,agenda:pAgenda,messages:inbox,earnings:()=>pEarnings()+pYearCard()+tipsCard()+pExpCard(),profile:()=>accPage('companion')},admin:{dashboard:()=>aPhoneSearch()+aDash()+aSupport(),disputes:()=>aDisputes()+aDecisions(),users:()=>aVerif()+aGalReview()+aExpReview()+aBiz()+aUsers(),settings:()=>aSettings()+aAdmins()+aPhotoTool()+logoutBlock(),audit:aAudit}}[S.role][S.tab]||(()=>''))();
   const tabs={client:['home','explore','bookings','messages','account'],companion:['home','requests','agenda','messages','profile'],admin:['dashboard','disputes','users','settings','audit']}[S.role];
   app.innerHTML=`<header class="top"><div class="wrap top-in"><div class="brand"><small>${esc(roleName)}</small></div>
     <div class="tools"><select class="lang" id="lang" aria-label="Langue">${Object.keys(T).map(l=>`<option value="${l}" ${l===S.lang?'selected':''}>${l.toUpperCase()}</option>`).join('')}</select>
     <button class="iconbtn" data-a="theme" aria-label="Changer de thème">${svg('sun')}</button>
     <button class="iconbtn" data-a="security" aria-label="Centre de sécurité">${svg('shield')}</button>
     <button class="iconbtn" data-a="notifs" aria-label="Notifications">${svg('bell')}${unread?`<span class="badge">${unread}</span>`:''}</button>
-    <button class="iconbtn" data-a="logout" aria-label="Se déconnecter" title="Se déconnecter">${svg('logout')}</button></div></div></header>
+</div></div></header>
   <main><div class="wrap">${body}</div></main>
   ${(S.role!=='admin'||S.adminOk)?`<nav class="tabs" aria-label="Navigation"><div class="wrap">${tabs.map(k=>`<button class="${S.tab===k?'on':''}" data-a="tab" data-v="${k}" aria-current="${S.tab===k?'page':'false'}">${svg(k)}<span>${t(k)}</span></button>`).join('')}</div></nav>`:''}
   ${sheetHtml()}${toastHtml()}`;
@@ -1462,7 +1507,7 @@ function extClick(a,el,id,v,b,me){switch(a){
   case'quick':{const r=api.send(b,me,QR[+v]);if(r.err)toast(r.err,true);setTimeout(()=>{const m=document.getElementById('msgs');m&&(m.scrollTop=m.scrollHeight)});break}
   case'receipts':S.prefs.receipts=el.checked;break;
   case'csv-b':{const rows=[['reference','date','client','accompagnateur','ville','activite','duree_h','statut','total_eur','commission_eur']].concat(S.bookings.slice().sort((x,y)=>x.start-y.start).map(x=>[x.ref,new Date(x.start).toISOString(),S.users[x.clientId].name,comp(x.companionId).name,comp(x.companionId).city,catName(x.cat),(x.hours*60+x.extMins)/60,ST[x.status][0],x.total.toFixed(2),x.service.toFixed(2)]));open('text',{title:'Export des réservations',sub:'Format CSV, séparateur point-virgule.',text:rows.map(r=>r.join(';')).join('\n')});break}
-  default:return v13Click(a,el,id,v,b,me)||v14Click(a,el,id,v)||v15Click(a,el,id,v,b)||v16Click(a)||v17Click(a,el,id,v)||v18Click(a,el,id,v)||v19Click(a,el,id,v,b)||v20Click(a,el,id,v,b)||v22Click(a,el,id,v,b)||v28Click(a,el,id,v,b)||dac7Click(a,el)||v23Click(a)||v26Click(a,el,id,v,b)}
+  default:return v29Click(a,el,id,v,b)||v13Click(a,el,id,v,b,me)||v14Click(a,el,id,v)||v15Click(a,el,id,v,b)||v16Click(a)||v17Click(a,el,id,v)||v18Click(a,el,id,v)||v19Click(a,el,id,v,b)||v20Click(a,el,id,v,b)||v22Click(a,el,id,v,b)||v28Click(a,el,id,v,b)||dac7Click(a,el)||v23Click(a)||v26Click(a,el,id,v,b)}
   return true}
 function extChange(el){
   if(el.id==='tax-year'){S.taxYear=+el.value;render();return true}
@@ -1485,6 +1530,7 @@ function extSubmit(k,f,fd,d,b,me){
   if(k==='safety-report'){const who=S.role==='client'?'Sophie':'Camille';S.flags.push({t:now(),type:'Signalement : '+d.kind,ref:'—',who});notify('admin',`Signalement de ${who} : ${d.kind}.`);log(who,'Signalement de sécurité : '+d.kind+(d.desc?' — '+d.desc.slice(0,80):''),'—');S.sheet=null;toast('Signalement transmis à l\'équipe Side by Side.');return true}
   if(k==='support'){if(!(d.q||'').trim()){toast('Écrivez votre question.',true);return true}notify('admin',`Demande d'assistance sur ${b.ref} : ${d.q.trim().slice(0,80)}`);log(partyName(b,me),'Demande d\'assistance',b.ref);S.sheet=null;toast('Demande envoyée. Réponse sous 24 h.');return true}
   if(k==='bio-pw'){if(!(d.pw||'').trim()){const p=document.getElementById('lk-err');p.textContent=tr('Saisissez votre mot de passe.');p.hidden=false;return 'stop'}bioEnter();return true}
+  {const r29=v29Submit(k,f,d);if(r29)return r29}
   {const rl=liveSubmit(k,f,d);if(rl)return rl}
   if(k==='admcode')return admCodeSubmit(d);
   if(k==='adm-reset-sms'||k==='adm-reset-new')return admResetSubmit(k,d);
@@ -2226,7 +2272,7 @@ function liveEmailPage(){const v=S.su.v;return `<main class="page">${pageHead('A
 <button class="btn pri full big2" data-a="live-mode" data-v="login">J'ai activé mon compte, me connecter</button></main>`}
 
 function liveBoot(){if(!LIVE)return;
-  SB=window.supabase.createClient(SBS_CONFIG.url,SBS_CONFIG.key,{auth:{persistSession:true,autoRefreshToken:true,detectSessionInUrl:false}});
+  SB=window.supabase.createClient(SBS_CONFIG.url,SBS_CONFIG.key,{auth:{persistSession:true,autoRefreshToken:true,detectSessionInUrl:false,flowType:'pkce'}});
   // la démo est vidée : seules les données du serveur s'affichent
   Object.assign(S,{companions:[],bookings:[],msgs:{},notifs:[],reviews:[],disputes:[],ledger:[],flags:[],experiences:[],gifts:[],support:[],logs:[],role:null,biz:null});
   S.users={u1:{id:'u1',name:'',city:'',verified:'pending',trusted:'',interests:[],notif:[]}};
@@ -2237,7 +2283,7 @@ function liveBoot(){if(!LIVE)return;
   const create=api.create.bind(api);
   api.create=(cid,f)=>{const n=S.bookings.length,r=create(cid,f);if(r.err)return r;const b=S.bookings.splice(n,1)[0];
     liveDo(liveCall('create-booking',{companion_id:realOf(cid),category:b.cat,starts_at:new Date(b.start).toISOString(),hours:b.hours,place:b.place,language:b.lang,note:b.note,annex:b.annex,experience_id:null,
-      beneficiary:b.forWho?{name:b.forWho.name,relation:b.forWho.rel,phone:b.forWho.tel,needs:b.forWho.needs,info:b.forWho.info,consent:true}:null}),'Demande envoyée.');
+      beneficiary:b.forWho?{name:b.forWho.name,relation:b.forWho.rel,phone:b.forWho.tel,needs:b.forWho.needs,info:b.forWho.info,consent:true}:null}),'Votre réservation sera confirmée dès que l\'accompagnateur aura accepté votre demande.');
     return{ok:1,msg:'Envoi de la demande…'}};
   api.accept=b=>{if(b.status!=='en_attente')return{err:'Demande déjà traitée.'};liveDo(liveCall('booking-action',{booking_id:b.id,action:'accept'}),'Demande acceptée.');b.status='acceptee';return{ok:1,msg:'Envoi…'}};
   api.refuse=b=>{if(b.status!=='en_attente')return{err:'Demande déjà traitée.'};liveDo(liveCall('booking-action',{booking_id:b.id,action:'refuse'}),'Demande refusée.');b.status='refusee';return{ok:1,msg:'Envoi…'}};
@@ -2784,6 +2830,440 @@ function v28Init(){if(window.__v28)return;window.__v28=1;
   S.insHist=S.insHist||S.companions.flatMap(c=>(c.ins||[]).flatMap(i=>[{insId:i.id,decision:'depot',t:i.created},...(i.reviewed?[{insId:i.id,decision:'validee',t:i.reviewed}]:[]),...(i.status==='expiree'?[{insId:i.id,decision:'expiree',t:Date.parse(i.end)+DAY}]:[])])).sort((a,b)=>b.t-a.t);
   if(S.insRequired===undefined)S.insRequired=true;
   if(LIVE){const _l=liveLoad;liveLoad=async(...x)=>{const r=await _l(...x);liveInsLoad();liveTax28();return r};const _t=liveTaxLoad;liveTaxLoad=(...x)=>{_t(...x);liveTax28()}}}
+
+/* ================= V2.9 — Tests sur téléphone : écran d'accueil animé, connexion Google / Apple, inscription en 3 étapes,
+   villes du monde entier, recherche par date, heure et durée, demandes de sortie, assistant, e-mails, Mon compte ================= */
+const DEEP_LINK='fr.zyntell.sidebyside://auth/callback';
+// Pays : nom, indicatif téléphonique et fuseau horaire principal (aucun service externe)
+const COUNTRIES=[['FR','France','+33','Europe/Paris'],['BE','Belgique','+32','Europe/Brussels'],['CH','Suisse','+41','Europe/Zurich'],['LU','Luxembourg','+352','Europe/Luxembourg'],['MC','Monaco','+377','Europe/Monaco'],
+  ['DE','Allemagne','+49','Europe/Berlin'],['AT','Autriche','+43','Europe/Vienna'],['ES','Espagne','+34','Europe/Madrid'],['PT','Portugal','+351','Europe/Lisbon'],['IT','Italie','+39','Europe/Rome'],['NL','Pays-Bas','+31','Europe/Amsterdam'],
+  ['GB','Royaume-Uni','+44','Europe/London'],['IE','Irlande','+353','Europe/Dublin'],['DK','Danemark','+45','Europe/Copenhagen'],['SE','Suède','+46','Europe/Stockholm'],['NO','Norvège','+47','Europe/Oslo'],['FI','Finlande','+358','Europe/Helsinki'],
+  ['PL','Pologne','+48','Europe/Warsaw'],['CZ','Tchéquie','+420','Europe/Prague'],['HU','Hongrie','+36','Europe/Budapest'],['RO','Roumanie','+40','Europe/Bucharest'],['GR','Grèce','+30','Europe/Athens'],['HR','Croatie','+385','Europe/Zagreb'],
+  ['TR','Turquie','+90','Europe/Istanbul'],['MA','Maroc','+212','Africa/Casablanca'],['DZ','Algérie','+213','Africa/Algiers'],['TN','Tunisie','+216','Africa/Tunis'],['SN','Sénégal','+221','Africa/Dakar'],['CI','Côte d\'Ivoire','+225','Africa/Abidjan'],
+  ['EG','Égypte','+20','Africa/Cairo'],['ZA','Afrique du Sud','+27','Africa/Johannesburg'],['AE','Émirats arabes unis','+971','Asia/Dubai'],['SA','Arabie saoudite','+966','Asia/Riyadh'],['QA','Qatar','+974','Asia/Qatar'],['IL','Israël','+972','Asia/Jerusalem'],
+  ['US','États-Unis','+1','America/New_York'],['CA','Canada','+1','America/Toronto'],['MX','Mexique','+52','America/Mexico_City'],['BR','Brésil','+55','America/Sao_Paulo'],['AR','Argentine','+54','America/Argentina/Buenos_Aires'],
+  ['JP','Japon','+81','Asia/Tokyo'],['CN','Chine','+86','Asia/Shanghai'],['KR','Corée du Sud','+82','Asia/Seoul'],['SG','Singapour','+65','Asia/Singapore'],['TH','Thaïlande','+66','Asia/Bangkok'],['IN','Inde','+91','Asia/Kolkata'],
+  ['AU','Australie','+61','Australia/Sydney'],['NZ','Nouvelle-Zélande','+64','Pacific/Auckland']];
+const ctry=k=>COUNTRIES.find(c=>c[0]===k)||COUNTRIES[0];
+const countryOpts=(sel)=>COUNTRIES.map(([k,n])=>`<option value="${k}" ${k===sel?'selected':''}>${esc(n)}</option>`).join('');
+const dialOpts=(sel)=>COUNTRIES.map(([k,n,d])=>`<option value="${k}" ${k===sel?'selected':''}>${esc(n)} (${d})</option>`).join('');
+// Ville normalisée : mêmes règles que la base (majuscules, accents, tirets, espaces)
+const normCity=s=>String(s||'').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g,'').replace(/œ/g,'o').replace(/ß/g,'s').replace(/['’\-_.,]/g,' ').replace(/\s+/g,' ').trim();
+const cityTitle=s=>String(s||'').trim().replace(/\s+/g,' ').replace(/(^|[\s-])(\p{L})/gu,(m,a,b)=>a+b.toUpperCase());
+const sameCity=(a,b)=>!!normCity(a)&&normCity(a)===normCity(b);
+const compCountry=c=>c.country||'FR';
+// Suggestions de villes : celles déjà connues de l'application (jamais une liste fermée)
+function cityList(id){const set=new Map();[...S.cities.map(c=>c.city),...S.companions.map(c=>c.city),'Paris','Lyon','Marseille','Bordeaux','Lille','Rouen','Nantes','Toulouse','Nice','Strasbourg','Londres','Bruxelles','Genève','Casablanca','New York','Tokyo']
+  .filter(Boolean).forEach(x=>{const k=normCity(x);if(!set.has(k))set.set(k,cityTitle(x))});return `<datalist id="${id}">${[...set.values()].sort((a,b)=>a.localeCompare(b)).map(x=>`<option value="${esc(x)}">`).join('')}</datalist>`}
+// Heure locale d'une ville (fuseau de son pays) → instant universel ; indépendant du fuseau du téléphone
+function zonedTs(date,time,tz){const [y,m,d]=date.split('-').map(Number),[hh,mm]=String(time||'00:00').split(':').map(Number),guess=Date.UTC(y,m-1,d,hh,mm||0);
+  const off=t=>{const p=Object.fromEntries(new Intl.DateTimeFormat('en-GB',{timeZone:tz,hourCycle:'h23',year:'numeric',month:'2-digit',day:'2-digit',hour:'2-digit',minute:'2-digit'}).formatToParts(new Date(t)).map(x=>[x.type,x.value]));return Date.UTC(+p.year,+p.month-1,+p.day,+p.hour,+p.minute)-t};
+  let t=guess-off(guess);t=guess-off(t);return t}
+const DUR_TXT=['','une heure','deux heures','trois heures','quatre heures','cinq heures','six heures','sept heures','huit heures'];
+function fLongDay(date){const d=new Date(date+'T12:00:00');return new Intl.DateTimeFormat(LOC(),{weekday:'long',day:'numeric',month:'long'}).format(d)}
+const fH=t=>{const [h,m]=String(t).split(':');return +m?`${+h} h ${m}`:`${+h} h`};
+const eyeBtn=id=>`<button type="button" class="eye" data-a="pw-eye" data-v="${id}" aria-label="Afficher le mot de passe" aria-pressed="false"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M2 12s3.6-7 10-7 10 7 10 7-3.6 7-10 7S2 12 2 12Z"/><circle cx="12" cy="12" r="3"/></svg></button>`;
+const pwField=(id,name,label,auto,help='')=>`<div class="field"><label for="${id}">${label}</label><div class="pwwrap"><input id="${id}" name="${name}" type="password" autocomplete="${auto}" value="${id.startsWith('su-')&&S.su?suv(name):''}">${eyeBtn(id)}</div>${help?`<span class="xs muted">${help}</span>`:''}</div>`;
+
+/* ---------- 1. Écran d'accueil animé au lancement ---------- */
+function splashShow(){if(document.getElementById('sbs-splash'))return;const d=document.createElement('div');d.id='sbs-splash';d.setAttribute('role','presentation');
+  d.innerHTML=`<div class="sp-in"><div class="sp-mark"><svg viewBox="0 0 40 40" aria-hidden="true"><circle cx="14.5" cy="11" r="4.2"/><circle cx="25.5" cy="11" r="4.2"/><rect x="10.3" y="18" width="8.4" height="17" rx="4.2"/><rect x="21.3" y="18" width="8.4" height="17" rx="4.2"/></svg></div><div class="sp-name">SIDE BY SIDE</div><div class="sp-by">moments</div><div class="sp-line"></div></div>`;
+  document.body.appendChild(d);const t0=Date.now();window.__splashT0=t0;
+  try{const P=window.Capacitor&&Capacitor.Plugins;if(P&&P.SplashScreen)setTimeout(()=>P.SplashScreen.hide({fadeOutDuration:200}).catch(()=>{}),60)}catch(e){}
+  setTimeout(()=>splashHide(),4000)}
+function splashHide(){const d=document.getElementById('sbs-splash');if(!d||d.classList.contains('out'))return;const wait=Math.max(0,1100-(Date.now()-(window.__splashT0||0)));
+  setTimeout(()=>{d.classList.add('out');setTimeout(()=>d.remove(),520)},wait)}
+
+/* ---------- 2. Connexion : œil, mot de passe oublié, Google et Apple (Supabase) ---------- */
+function oauthButtons(){return `<div class="oauth"><div class="or"><span>ou</span></div>
+  <button type="button" class="btn full oauth-btn" data-a="oauth" data-v="google"><svg viewBox="0 0 24 24" aria-hidden="true"><path fill="#4285F4" d="M22.6 12.3c0-.8-.1-1.5-.2-2.2H12v4.2h6a5 5 0 0 1-2.2 3.3v2.7h3.5c2-1.9 3.3-4.7 3.3-8Z"/><path fill="#34A853" d="M12 23c3 0 5.5-1 7.3-2.7l-3.5-2.7c-1 .7-2.3 1.1-3.8 1.1-2.9 0-5.4-2-6.3-4.6H2.1v2.8A11 11 0 0 0 12 23Z"/><path fill="#FBBC05" d="M5.7 14.1a6.6 6.6 0 0 1 0-4.2V7.1H2.1a11 11 0 0 0 0 9.8l3.6-2.8Z"/><path fill="#EA4335" d="M12 5.4c1.6 0 3.1.6 4.2 1.7l3.1-3.1A11 11 0 0 0 2.1 7.1l3.6 2.8C6.6 7.4 9.1 5.4 12 5.4Z"/></svg><span>Continuer avec Google</span></button>
+  <button type="button" class="btn full oauth-btn apple" data-a="oauth" data-v="apple"><svg viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M16.4 12.6c0-2.6 2.1-3.8 2.2-3.9a4.8 4.8 0 0 0-3.8-2c-1.6-.2-3.1.9-3.9.9-.8 0-2-.9-3.4-.9a5 5 0 0 0-4.2 2.6c-1.8 3.1-.5 7.7 1.3 10.2.9 1.2 1.9 2.6 3.2 2.6 1.3-.1 1.8-.8 3.3-.8 1.6 0 2 .8 3.4.8 1.4 0 2.3-1.3 3.1-2.5a11 11 0 0 0 1.4-2.9 4.5 4.5 0 0 1-2.6-4.1ZM13.9 5a4.4 4.4 0 0 0 1-3.2 4.5 4.5 0 0 0-2.9 1.5 4.2 4.2 0 0 0-1.1 3.1A3.7 3.7 0 0 0 13.9 5Z"/></svg><span>Continuer avec Apple</span></button></div>`}
+async function oauthStart(provider){if(!LIVE){toast('Démonstration : dans l\'application, ce bouton ouvre la connexion sécurisée '+(provider==='google'?'Google':'Apple')+'.');return}
+  try{const r=await fetch(SBS_CONFIG.url+'/auth/v1/settings',{headers:{apikey:SBS_CONFIG.key}});const s=await r.json();if(!(s.external&&s.external[provider])){toast(`La connexion avec ${provider==='google'?'Google':'Apple'} n'est pas encore activée. Utilisez votre e-mail et votre mot de passe.`,true);return}}catch(e){toast('Le serveur ne répond pas. Réessayez.',true);return}
+  const native=window.Capacitor&&Capacitor.isNativePlatform&&Capacitor.isNativePlatform();
+  const {data,error}=await SB.auth.signInWithOAuth({provider,options:{redirectTo:native?DEEP_LINK:location.origin+location.pathname,skipBrowserRedirect:true,queryParams:provider==='google'?{prompt:'select_account'}:undefined}});
+  if(error||!data||!data.url){toast('Connexion impossible pour le moment.',true);return}
+  const B=window.Capacitor&&Capacitor.Plugins&&Capacitor.Plugins.Browser;if(native&&B)B.open({url:data.url,presentationStyle:'popover'});else location.href=data.url}
+// Retour dans l'application depuis un e-mail (confirmation, mot de passe oublié) ou depuis Google / Apple
+async function authReturn(url){if(!LIVE||!url||!/auth\/callback|[?#&](code|access_token|error)=/.test(url))return false;
+  try{const B=Capacitor.Plugins&&Capacitor.Plugins.Browser;B&&B.close().catch(()=>{})}catch(e){}
+  const u=new URL(url.replace(/^fr\.zyntell\.sidebyside:\/\//,'https://app/')),q=new URLSearchParams(u.search),h=new URLSearchParams(u.hash.replace(/^#/,''));
+  const err=q.get('error_description')||h.get('error_description');if(err){toast(/expired|invalid/i.test(err)?'Ce lien a expiré ou a déjà été utilisé. Demandez-en un nouveau.':'Connexion impossible : '+err,true);return true}
+  const type=q.get('type')||h.get('type');let res;
+  if(q.get('code'))res=await SB.auth.exchangeCodeForSession(q.get('code'));
+  else if(h.get('access_token'))res=await SB.auth.setSession({access_token:h.get('access_token'),refresh_token:h.get('refresh_token')});
+  else return false;
+  if(res.error){toast('Ce lien a expiré ou a déjà été utilisé. Demandez-en un nouveau.',true);return true}
+  if(type==='recovery'||S.liveAuth&&S.liveAuth.recovery){S.liveAuth={mode:'newpw'};S.role=null;render();return true}
+  if(type==='signup'||type==='email')toast('Adresse e-mail confirmée. Bienvenue sur Side by Side !');
+  liveLoad();return true}
+function newPwPage(){return `<main class="login"><div class="wrap login-in">${loginLogo()}<form class="stack" data-form="live-newpw" style="width:100%"><h2>Nouveau mot de passe</h2>
+  ${pwField('np1','pw','Nouveau mot de passe','new-password','10 caractères minimum, avec au moins une lettre et un chiffre.')}${pwField('np2','pw2','Confirmez le mot de passe','new-password')}
+  <p class="note t-bad sm" id="np-err" hidden></p><button class="btn pri full big">Enregistrer mon nouveau mot de passe</button></form></div></main>`}
+const loginLogo=()=>`<div class="login-logo"><div class="mono big" aria-hidden="true"><svg class="mark" viewBox="0 0 40 40" aria-hidden="true"><circle cx="14.5" cy="11" r="4.2"/><circle cx="25.5" cy="11" r="4.2"/><rect x="10.3" y="18" width="8.4" height="17" rx="4.2"/><rect x="21.3" y="18" width="8.4" height="17" rx="4.2"/></svg></div><h1>Side by Side</h1><span class="byline">moments</span></div>`;
+// Fin d'inscription après Google / Apple : informations exigées par Side by Side
+function completePage(){const v=S.cp||(S.cp={role:'client',country:'FR',first:ME&&ME.first_name!=='Membre'?ME.first_name:'',last:ME&&ME.last_name!=='-'?ME.last_name:''});
+  return `<main class="page">${pageHead('Finaliser mon inscription','cp-cancel')}<p class="sm muted">Quelques informations sont nécessaires avant d'utiliser Side by Side.</p>
+  <form class="stack" data-form="live-complete" novalidate>
+  <div class="typecards"><label class="typecard ${v.role!=='companion'?'on':''}"><input type="radio" name="role" value="client" ${v.role!=='companion'?'checked':''}><span class="tc"><b>Client</b><small>Je réserve un accompagnateur.</small></span></label><label class="typecard ${v.role==='companion'?'on':''}"><input type="radio" name="role" value="companion" ${v.role==='companion'?'checked':''}><span class="tc"><b>Accompagnateur</b><small>Je propose mes services.</small></span></label></div>
+  <div class="two"><div class="field"><label for="cp-f">Prénom</label><input id="cp-f" name="first" value="${esc(v.first||'')}" autocomplete="given-name"></div><div class="field"><label for="cp-l">Nom</label><input id="cp-l" name="last" value="${esc(v.last||'')}" autocomplete="family-name"></div></div>
+  <div class="field"><label for="cp-d">Date de naissance</label><input id="cp-d" name="dob" type="date" value="${esc(v.dob||'')}"><span class="xs muted">Service réservé aux personnes majeures.</span></div>
+  <div class="two"><div class="field"><label for="cp-c">Pays</label><select id="cp-c" name="country">${countryOpts(v.country)}</select></div><div class="field"><label for="cp-v">Ville</label><input id="cp-v" name="city" list="dl-cp" value="${esc(v.city||'')}" placeholder="Ex. : Rouen" autocomplete="address-level2">${cityList('dl-cp')}</div></div>
+  <div class="field"><label for="cp-t">Téléphone mobile</label><div class="row" style="flex-wrap:nowrap"><select name="dial" aria-label="Indicatif" style="max-width:9.5em">${dialOpts(v.dial||v.country||'FR')}</select><input id="cp-t" name="tel" type="tel" inputmode="tel" autocomplete="tel-national" value="${esc(v.tel||'')}" style="flex:1;min-width:0"></div></div>
+  <label class="row sm"><input type="checkbox" name="terms"> J'accepte les <button type="button" class="linkin" data-a="legaldoc" data-v="cgu">conditions générales</button></label>
+  <label class="row sm"><input type="checkbox" name="privacy"> J'accepte la <button type="button" class="linkin" data-a="legaldoc" data-v="confidentialite">politique de confidentialité</button></label>
+  <label class="row sm"><input type="checkbox" name="charter"> J'accepte la <button type="button" class="linkin" data-a="legaldoc" data-v="charte">charte Side by Side</button></label>
+  <label class="row sm"><input type="checkbox" name="adult"> Je certifie avoir 18 ans ou plus</label>
+  <label class="row sm" ${v.role==='companion'?'':'hidden'}><input type="checkbox" name="nc"> Je m'engage à ne pas proposer mes services en direct aux clients rencontrés via Side by Side pendant 12 mois</label>
+  <p class="note t-bad sm" id="cp-err" hidden></p><button class="btn pri full big2">Terminer mon inscription</button></form></main>`}
+function phoneE164(country,tel){const d=String(tel||'').replace(/[^\d+]/g,'');if(d.startsWith('+'))return d;const dial=ctry(country)[2];return dial+d.replace(/^0+/,'')}
+function phoneErr(country,tel){const n=String(tel||'').replace(/[\s.()-]/g,'');if(!n)return'Indiquez votre numéro de mobile.';
+  if(country==='FR'&&!/^(?:\+33|0033|0)?[67]\d{8}$/.test(n))return'Numéro de mobile invalide (06 ou 07).';
+  if(!/^\+?\d{6,15}$/.test(n))return'Numéro de téléphone invalide.';return''}
+
+/* ---------- 3. Inscription en trois étapes (valeurs conservées d'une étape à l'autre) ---------- */
+const SU_STEPS=[['type','first','last','dob','country','city','company','siret'],['email','tel','sms','pw','pw2'],['ref','cgu','privacy','charte','adult','pro','photos','nc','hold']];
+function signup3(){const su=S.su;if(su.step==='email')return emailPage();if(su.step==='onboard')return onboardPage();
+  const v=su.v,st=su.page||1,isC=v.type==='companion',isB=v.type==='biz';if(!v.country)v.country='FR';if(!v.dial)v.dial=v.country;
+  const prog=`<div class="suprog" role="progressbar" aria-valuemin="1" aria-valuemax="3" aria-valuenow="${st}"><div class="row"><b class="sm">Étape ${st}/3</b><span class="xs muted grow" style="text-align:end">${['Type de compte et identité','Coordonnées et sécurité','Validation de l\'inscription'][st-1]}</span></div><div class="bar"><i style="width:${st*33.34}%"></i></div></div>`;
+  const ck=(k,label)=>`<label class="row sm"><input type="checkbox" name="${k}" ${v[k]?'checked':''}> <span>${label}</span></label>${ferr(k)}`;
+  let body='';
+  if(st===1)body=`<div class="typecards">
+    <label class="typecard ${!isC&&!isB?'on':''}"><input type="radio" name="type" value="client" ${!isC&&!isB?'checked':''}><span class="tc"><b>Client</b><small>Je réserve un accompagnateur pour une sortie, une visite, un dîner ou un événement.</small></span></label>
+    <label class="typecard ${isC?'on':''}"><input type="radio" name="type" value="companion" ${isC?'checked':''}><span class="tc"><b>Accompagnateur</b><small>Je propose mes services d'accompagnement, rémunérés à chaque prestation.</small></span></label>
+    <label class="typecard ${isB?'on':''}"><input type="radio" name="type" value="biz" ${isB?'checked':''}><span class="tc"><b>Entreprise</b><small>Je réserve pour mes clients ou partenaires, avec une facture mensuelle unique.</small></span></label></div>
+    ${isB?bizFields():''}<div class="two">${fld('first','Prénom','autocomplete="given-name"')}${fld('last','Nom','autocomplete="family-name"')}</div>
+    ${fld('dob','Date de naissance','type="date"','Service réservé aux personnes majeures (18 ans et plus).')}
+    <div class="two"><div class="field"><label for="su-country">Pays</label><select id="su-country" name="country">${countryOpts(v.country)}</select></div>
+    <div class="field"><label for="su-city">Ville</label><input id="su-city" name="city" list="dl-su" value="${suv('city')}" placeholder="Ex. : Rouen, Londres, Tokyo" autocomplete="address-level2" ${su.err.city?'aria-invalid="true"':''}>${cityList('dl-su')}${ferr('city')}</div></div>`;
+  if(st===2)body=`${fld('email','Adresse e-mail','type="email" autocomplete="email" inputmode="email"')}
+    <div class="field"><label for="su-tel">Téléphone mobile</label><div class="row" style="flex-wrap:nowrap"><select name="dial" aria-label="Indicatif téléphonique" style="max-width:9.5em">${dialOpts(v.dial)}</select><input id="su-tel" name="tel" value="${suv('tel')}" type="tel" inputmode="tel" autocomplete="tel-national" placeholder="${v.dial==='FR'?'06 12 34 56 78':'Numéro de mobile'}" style="flex:1;min-width:0" ${su.err.tel?'aria-invalid="true"':''}></div>
+    ${LIVE?'<span class="xs muted">Votre numéro sera vérifié par SMS dès que ce service sera activé ; il n\'est pas affiché comme vérifié en attendant.</span>':`<button type="button" class="btn ${su.smsSent?'':'pri'}" data-a="su-sms">${su.smsSent?'Renvoyer le code':'Recevoir un code par SMS'}</button>`}${ferr('tel')}</div>
+    ${!LIVE&&su.smsSent?fld('sms','Code reçu par SMS','inputmode="numeric" maxlength="6" autocomplete="one-time-code"',`Code envoyé au ${esc(ctry(v.dial)[2])} ${esc(v.tel||'')}.`):''}
+    ${pwField('su-pw','pw','Mot de passe','new-password','10 caractères minimum, avec au moins une lettre et un chiffre.')}${ferr('pw')}<div class="pwmeter" aria-hidden="true"><i id="pw-bar"></i></div>
+    ${pwField('su-pw2','pw2','Confirmation du mot de passe','new-password')}${ferr('pw2')}<p class="xs" id="pw-match"></p>`;
+  if(st===3)body=`${!isC&&!isB?`<div class="card stack">${fld('ref','Code de parrainage (facultatif)','autocomplete="off" style="text-transform:uppercase"',`${eur(S.settings.refAmount||10)} offerts sur votre première réservation.`)}</div>`:''}
+    ${ck('cgu','J\'accepte les <button type="button" class="linkin" data-a="legaldoc" data-v="cgu">conditions générales d\'utilisation</button>')}
+    ${ck('privacy','J\'accepte la <button type="button" class="linkin" data-a="legaldoc" data-v="confidentialite">politique de confidentialité</button>')}
+    ${ck('charte','J\'accepte la <button type="button" class="linkin" data-a="legaldoc" data-v="charte">charte Side by Side</button> : aucun service intime ou sexuel, aucune activité illégale')}
+    ${ck('adult','Je certifie avoir 18 ans ou plus')}
+    ${isC?ck('pro','Je m\'engage à déclarer mes revenus (statut auto-entrepreneur ou équivalent)')+ck('photos','Je m\'engage à publier uniquement des photos réelles de moi, sans retouche ni IA')+ck('nc','Je m\'engage à ne pas proposer mes services en direct aux clients rencontrés via Side by Side pendant 12 mois'):''}
+    ${isB?ck('hold','J\'accepte l\'enregistrement d\'une empreinte bancaire : chaque réservation est pré-autorisée et la facture mensuelle est prélevée sur cette carte')+ck('nc','L\'entreprise s\'engage à ne pas faire travailler directement un accompagnateur rencontré via Side by Side pendant 12 mois'):''}`;
+  return `<main class="page">${pageHead('Créer un compte','su-back')}${prog}
+  <form class="stack" data-form="su3" novalidate>${body}
+  ${Object.keys(su.err).length?'<div class="note t-bad sm">Corrigez les champs signalés en rouge.</div>':''}
+  <div class="row sunav">${st>1?'<button type="button" class="btn" data-a="su-prev">Retour</button>':''}<button class="btn pri grow big2">${st<3?'Continuer':'Créer mon compte'}</button></div>
+  ${st===1?'<p class="xs muted" style="text-align:center">Déjà inscrit(e) ? <button type="button" class="linkin" data-a="su-back">Se connecter</button></p>':''}</form></main>`}
+// Contrôles : ceux de l'inscription existante, plus pays, ville, indicatif et politique de confidentialité
+function su3Errors(step){const v=S.su.v,raw=_suValidate(),e={};
+  // le contrôle du téléphone tient compte de l'indicatif choisi
+  delete raw.tel;delete raw.sms;const pe=phoneErr(v.dial||'FR',v.tel);if(pe)raw.tel=pe;
+  else if(!LIVE){if(!S.su.smsSent)raw.tel='Touchez « Recevoir un code par SMS » pour vérifier votre numéro.';else if((v.sms||'').trim()!==S.su.code)raw.sms='Code SMS incorrect.'}
+  if(String(v.city||'').trim().length<1)raw.city='Indiquez votre ville.';
+  if(!v.privacy)raw.privacy='Acceptez la politique de confidentialité.';
+  if(raw.cgu)raw.cgu='Acceptez les conditions générales d\'utilisation.';
+  for(const k of Object.keys(raw))if(SU_STEPS.slice(0,step).flat().includes(k))e[k]=raw[k];
+  return e}
+function su3Capture(f){const fd=new FormData(f),v=S.su.v;for(const el of f.elements){if(!el.name)continue;if(el.type==='checkbox')v[el.name]=el.checked;else if(el.type==='radio'){if(el.checked)v[el.name]=el.value}else if(el.type!=='file'&&el.type!=='button')v[el.name]=el.value}return fd}
+function su3Submit(f){su3Capture(f);const su=S.su,st=su.page||1;su.err=su3Errors(st);
+  if(Object.keys(su.err).length){Object.keys(su.err).forEach(x=>su.err[x]=tr(su.err[x]));const first=Object.keys(su.err)[0],pg=SU_STEPS.findIndex(a=>a.includes(first))+1;if(pg&&pg<st)su.page=pg;render();setTimeout(()=>{const fe=document.querySelector('.ferr');fe&&fe.scrollIntoView({block:'center',behavior:'smooth'})},30);return 'stop'}
+  if(st<3){su.page=st+1;scrollTo(0,0);return true}
+  su.v.city=cityTitle(su.v.city);
+  if(LIVE){liveSignup3(su.v).then(({error})=>{if(error){toast(/registered|already/i.test(error.message)?'Un compte existe déjà avec cet e-mail.':'Inscription impossible. Vérifiez vos informations.',true);return}su.step='email';scrollTo(0,0);render()});return 'stop'}
+  su.step='email';scrollTo(0,0);return true}
+function liveSignup3(v){const role=v.type==='companion'?'companion':v.type==='biz'?'business':'client';
+  return SB.auth.signUp({email:v.email.trim(),password:v.pw,options:{emailRedirectTo:DEEP_LINK,data:{first_name:v.first.trim(),last_name:v.last.trim(),birth_date:v.dob,phone:phoneE164(v.dial||'FR',v.tel),city:v.city,country:v.country||'FR',
+    lang:S.lang||'fr',time_zone:ctry(v.country||'FR')[3],role,non_circumvention:!!v.nc,terms:!!(v.cgu&&v.privacy&&v.charte),referral_code:(v.ref||'').trim().toUpperCase()||undefined,company:v.company||undefined,siret:v.siret||undefined}}})}
+
+/* ---------- 4 à 10. Recherche par ville, date, heure et durée ; demandes de sortie ; assistant ---------- */
+const ACT_EXTRA=[['autre','Autre activité autorisée']];
+function actOpts(sel){return S.cats.filter(c=>c.on).map(c=>`<option value="${c.id}" ${c.id===sel?'selected':''}>${esc(c.name)}</option>`).join('')+ACT_EXTRA.map(([k,l])=>`<option value="${k}" ${k===sel?'selected':''}>${l}</option>`).join('')}
+const timeOpts=sel=>{let o='';for(let h=7;h<=22;h++)for(const m of['00','30']){if(h===22&&m==='30')continue;const t=`${String(h).padStart(2,'0')}:${m}`;o+=`<option value="${t}" ${t===sel?'selected':''}>${fH(t)}</option>`}return o};
+function hsDefaults(){const u=S.users.u1||{};if(!S.hs)S.hs={city:u.city||'',country:u.country||'FR',date:dayKey(now()+2*DAY),time:'14:00',dur:2,cat:'',done:false};return S.hs}
+// L'accompagnateur est-il libre sur toute la durée demandée ? (jours, horaires, jours bloqués, réservations et délai de déplacement, 24 h, assurance)
+function freeAt(c,ts,hours){if(!c||c.paused||c.suspended||c.verified!=='ok')return false;if(ts<now()+24*H)return false;
+  const tz=c.tz||ctry(compCountry(c))[3],P=Object.fromEntries(new Intl.DateTimeFormat('en-GB',{timeZone:tz,weekday:'short',hour:'2-digit',minute:'2-digit',year:'numeric',month:'2-digit',day:'2-digit',hourCycle:'h23'}).formatToParts(new Date(ts)).map(x=>[x.type,x.value]));
+  const wd=['Mon','Tue','Wed','Thu','Fri','Sat','Sun'].indexOf(P.weekday),hh=+P.hour+(+P.minute)/60,key=`${P.year}-${P.month}-${P.day}`;
+  if(!(c.days||[]).includes(wd)||(c.blocked||[]).includes(key))return false;if(hh<c.from||hh+hours>c.to)return false;
+  const en=ts+hours*H,buf=(c.buffer||0)*6e4;
+  if(S.bookings.some(b=>b.companionId===c.id&&ACTIVE.includes(b.status)&&ts<endOf(b)+buf&&en+buf>b.start))return false;
+  if(typeof insOk==='function'&&!insOk(c.id,ts,hours))return false;return true}
+function catOk(c,cat){return !cat||cat==='autre'||c.cats.includes(cat)||(cat==='tourisme'&&c.cats.some(x=>['promenades','musees'].includes(x)))}
+// Résultats et message adapté à la situation réelle
+function searchRun(q){const tz=ctry(q.country)[3],ts=zonedTs(q.date,q.time,tz),dur=+q.dur;
+  const inCity=S.companions.filter(c=>c.verified==='ok'&&!c.suspended&&sameCity(c.city,q.city)&&compCountry(c)===q.country);
+  const withAct=inCity.filter(c=>catOk(c,q.cat));
+  const items=withAct.filter(c=>freeAt(c,ts,dur)).sort((a,b)=>(+rating(b.id).avg||0)-(+rating(a.id).avg||0));
+  const day0=zonedTs(q.date,'00:00',tz),sameDay=[];
+  if(!items.length)for(const c of withAct)for(let t=day0+7*H;t<=day0+22*H;t+=30*6e4)if(freeAt(c,t,dur)){sameDay.push({c,t});break}
+  const city=cityTitle(q.city),dl=fLongDay(q.date);let msg='',kind='ok';
+  if(!inCity.length){kind='city';msg='Aucun accompagnateur n\'est actuellement disponible dans cette ville.'}
+  else if(!withAct.length){kind='act';msg=`Aucun accompagnateur ne propose cette activité à ${city} pour le moment.`}
+  else if(!items.length&&!sameDay.length){kind='date';msg=`Aucun accompagnateur n'est disponible à ${city} le ${dl}.`}
+  else if(!items.length){kind='time';msg=`Aucun accompagnateur n'est disponible à ${city} le ${dl} à ${fH(q.time)} pour une durée de ${DUR_TXT[dur]||dur+' heures'}.`}
+  return{q,ts,items,sameDay,msg,kind,city,dl}}
+function resultsHtml(R){const q=R.q;
+  const head=`<div class="card row srch-sum"><div class="grow"><b>${esc(R.city)}</b> · ${esc(R.dl)} · ${fH(q.time)} · ${DUR_TXT[q.dur]||q.dur+' h'}${q.cat?` · ${esc(q.cat==='autre'?'Autre activité':catName(q.cat))}`:''}</div><button class="btn ghost" data-a="hs-edit">Modifier ma recherche</button></div>`;
+  if(R.items.length)return head+`<h3>${R.items.length} accompagnateur${R.items.length>1?'s':''} disponible${R.items.length>1?'s':''}</h3>`+R.items.map(c=>{const cat=q.cat&&q.cat!=='autre'&&c.cats.includes(q.cat)?q.cat:c.cats[0],p=price(c.rate,+q.dur,0);
+    return `<div class="card stack"><div class="row">${miniC(c)}<div class="grow"><b>${esc(c.name)}</b> <span class="xs muted">${esc(c.area||c.city)} · ${c.langs.join(', ')}</span><div class="xs muted">★ ${rating(c.id).avg} · ${c.rate} €/h · total estimé <span class="num">${eur(p.total)}</span></div></div></div>
+    <div class="row"><button class="btn ghost" data-a="open-profile" data-id="${c.id}">Voir le profil</button><button class="btn pri grow" data-a="hs-book" data-id="${c.id}" data-v="${R.ts}|${q.dur}|${cat}">Réserver</button></div></div>`}).join('');
+  return head+`<div class="card stack nores"><p><b>${esc(R.msg)}</b></p>
+    ${R.sameDay.length?`<p class="sm">Le même jour, d'autres horaires sont possibles :</p><div class="row">${R.sameDay.slice(0,6).map(x=>`<button class="btn xs slot" data-a="hs-book" data-id="${x.c.id}" data-v="${x.t}|${q.dur}|${q.cat&&q.cat!=='autre'&&x.c.cats.includes(q.cat)?q.cat:x.c.cats[0]}">${esc(x.c.name)} · ${fhour(x.t)}</button>`).join('')}</div>`:''}
+    <div class="row"><button class="btn" data-a="hs-edit">Modifier ma recherche</button><button class="btn pri" data-a="req-new">Publier ma demande</button></div>
+    <p class="xs muted">En publiant votre demande, les accompagnateurs de ${esc(R.city)} — ou de passage — peuvent vous proposer leurs services. Vous restez libre de choisir.</p></div>`}
+function homeSearchCard(){const q=hsDefaults();return `<form class="card stack hsearch2" data-form="hsearch2" id="hs-form"><h2 class="hq">Quelle sortie souhaitez-vous faire ?</h2>
+  <div class="two"><div class="field"><label for="hs-city">Ville</label><input id="hs-city" name="city" list="dl-hs" value="${esc(q.city)}" placeholder="Ex. : Paris, Rouen, Londres" autocomplete="address-level2" required>${cityList('dl-hs')}</div>
+  <div class="field"><label for="hs-country">Pays</label><select id="hs-country" name="country">${countryOpts(q.country)}</select></div></div>
+  <div class="two"><div class="field"><label for="hs-date">Date</label><input id="hs-date" type="date" name="date" value="${q.date}" min="${dayKey(now()+DAY)}" required></div>
+  <div class="field"><label for="hs-time">Heure de début</label><select id="hs-time" name="time">${timeOpts(q.time)}</select></div></div>
+  <div class="two"><div class="field"><label for="hs-dur">Durée</label><select id="hs-dur" name="dur">${[1,2,3,4,5,6,7,8].filter(n=>n>=S.settings.minH&&n<=S.settings.maxH).map(n=>`<option value="${n}" ${+q.dur===n?'selected':''}>${n} h</option>`).join('')}</select></div>
+  <div class="field"><label for="hs-cat">Activité</label><select id="hs-cat" name="cat"><option value="">Toutes les activités</option>${actOpts(q.cat)}</select></div></div>
+  <p class="note t-bad sm" id="hs-err" hidden></p><button class="btn pri full big">Trouver un accompagnateur</button></form>`}
+
+/* Demandes de sortie ouvertes — client : publier, suivre, réserver ; accompagnateur : rechercher et proposer */
+function reqSheet(s,head){const q=hsDefaults();return head('Publier ma demande de sortie','Les accompagnateurs de la ville pourront vous proposer leurs services.')+`<form class="stack" data-form="req-new">
+  <div class="two"><div class="field"><label for="rq-city">Ville</label><input id="rq-city" name="city" list="dl-rq" value="${esc(q.city)}">${cityList('dl-rq')}</div><div class="field"><label for="rq-co">Pays</label><select id="rq-co" name="country">${countryOpts(q.country)}</select></div></div>
+  <div class="two"><div class="field"><label for="rq-d">Date</label><input id="rq-d" type="date" name="date" value="${q.date}" min="${dayKey(now()+2*DAY)}"></div><div class="field"><label for="rq-t">Heure de début</label><select id="rq-t" name="time">${timeOpts(q.time)}</select></div></div>
+  <div class="two"><div class="field"><label for="rq-h">Durée</label><select id="rq-h" name="dur">${[1,2,3,4,5,6,7,8].map(n=>`<option ${+q.dur===n?'selected':''}>${n}</option>`).join('')}</select></div><div class="field"><label for="rq-c">Activité</label><select id="rq-c" name="cat">${actOpts(q.cat||'promenades')}</select></div></div>
+  <div class="field"><label for="rq-n">Précisions (facultatif)</label><textarea id="rq-n" name="note" maxlength="500" rows="3" placeholder="Ce que vous aimeriez faire, langue souhaitée…"></textarea></div>
+  <p class="xs muted">Votre nom complet et vos coordonnées ne sont jamais montrés : seul votre prénom apparaît.</p><p class="note t-bad sm" id="rq-err" hidden></p><button class="btn pri full">Publier ma demande</button></form>`}
+function myReqs(){return LIVE?(S.liveReqs||[]):(S.openReqs||[]).filter(r=>r.clientId==='u1')}
+function myReqsHtml(){const L=myReqs().filter(r=>r.status==='ouverte');if(!L.length)return'';
+  return `<div class="stack"><h3>Mes demandes de sortie</h3>${L.map(r=>{const offers=(LIVE?(S.liveOffers||[]).filter(o=>o.request_id===r.id):(r.offers||[])).filter(o=>o.status!=='retiree');
+    return `<div class="card stack"><div class="row"><b class="grow">${esc(cityTitle(r.city))} · ${fdt(r.start)} · ${r.hours} h</b><span class="pill t-info">${offers.length} proposition${offers.length>1?'s':''}</span></div><span class="xs muted">${esc(r.cat==='autre'?'Autre activité':catName(r.cat))}${r.note?' · '+esc(r.note):''}</span>
+    ${offers.map(o=>{const c=comp(o.cid)||{name:o.first_name,rate:o.hourly_rate};return `<div class="row sm"><span class="grow"><b>${esc(c.name)}</b> · ${c.rate} €/h${o.message?` · « ${esc(o.message)} »`:''}</span><button class="btn pri xs" data-a="req-book" data-id="${o.cid}" data-v="${r.id}">Réserver</button></div>`}).join('')||'<p class="xs muted">En attente de propositions.</p>'}
+    <button class="btn ghost xs" data-a="req-cancel" data-v="${r.id}">Retirer ma demande</button></div>`}).join('')}</div>`}
+function compReqsHtml(){const c=comp('c1')||{},city=S.reqCity!=null?S.reqCity:c.city||'',country=S.reqCountry||compCountry(c);
+  const L=LIVE?(S.liveOpen||[]):(S.openReqs||[]).filter(r=>r.status==='ouverte'&&sameCity(r.city,city)&&r.country===country&&r.start>now()+2*H).map(r=>({...r,mine:(r.offers||[]).some(o=>o.cid==='c1'&&o.status!=='retiree')}));
+  return `<section class="section"><h3>Demandes de sortie des clients</h3><p class="xs muted">Par défaut, les demandes de votre ville. Cherchez aussi dans une autre ville où vous serez de passage.</p>
+  <form class="row" data-form="req-search"><input name="city" list="dl-rs" value="${esc(city)}" placeholder="Ville" aria-label="Ville" class="grow">${cityList('dl-rs')}<select name="country" aria-label="Pays" style="max-width:9em">${countryOpts(country)}</select><button class="btn">Rechercher</button></form>
+  ${L.length?L.map(r=>{const busy=!freeForOffer(r);return `<div class="card stack"><div class="row"><b class="grow">${esc(r.first_name||r.clientName||'Client')} · ${esc(cityTitle(r.city))}</b><span class="xs muted">${fdt(r.start)} · ${r.hours} h</span></div><span class="xs muted">${esc(r.cat==='autre'?'Autre activité':catName(r.cat))}${r.note?' · '+esc(r.note):''}</span>
+    ${r.mine?'<span class="pill t-ok">Proposition envoyée</span>':busy?'<span class="xs t-warn">Vous avez déjà une réservation sur ce créneau.</span>':`<form class="row" data-form="req-offer" data-id="${r.id}"><input name="msg" maxlength="300" class="grow" placeholder="Message au client (facultatif)" aria-label="Message"><button class="btn pri">Proposer mes services</button></form>`}</div>`}).join(''):`<p class="xs muted">Aucune demande ouverte à ${esc(cityTitle(city)||'cette ville')} pour le moment.</p>`}</section>`}
+function freeForOffer(r){const en=r.start+r.hours*H;return !S.bookings.some(b=>b.companionId==='c1'&&ACTIVE.includes(b.status)&&r.start<endOf(b)&&en>b.start)}
+
+/* Assistant : langage naturel, date réellement demandée, recherche en arrière-plan */
+const MOIS_FR=['janvier','fevrier','mars','avril','mai','juin','juillet','aout','septembre','octobre','novembre','decembre'];
+function parseAsk2(t){const r=parseAsk(t),s=t.toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g,''),n=new Date(now()),q=hsDefaults();
+  // « 30 novembre », « le 30 », « lundi 30 », « 30/11 », « 2026-11-30 » ; sinon la date choisie dans la recherche
+  let date=null;const iso=s.match(/\b(\d{4})-(\d{2})-(\d{2})\b/),dm=s.match(/\b(\d{1,2})\s*(?:er)?\s+(janvier|fevrier|mars|avril|mai|juin|juillet|aout|septembre|octobre|novembre|decembre)(?:\s+(\d{4}))?/),sl=s.match(/\b(\d{1,2})\/(\d{1,2})(?:\/(\d{2,4}))?\b/),le=s.match(/\b(?:le|lundi|mardi|mercredi|jeudi|vendredi|samedi|dimanche)\s+(\d{1,2})(?:er)?\b(?!\s*h)/);
+  const mk=(y,m,d)=>{const x=new Date(y,m,d,12);if(x.getTime()<now()&&!iso)x.setFullYear(x.getFullYear()+1);return dayKey(x)};
+  if(iso)date=`${iso[1]}-${iso[2]}-${iso[3]}`;else if(dm)date=mk(dm[3]?+dm[3]:n.getFullYear(),MOIS_FR.indexOf(dm[2]),+dm[1]);
+  else if(sl)date=mk(sl[3]?(+sl[3]<100?2000+ +sl[3]:+sl[3]):n.getFullYear(),+sl[2]-1,+sl[1]);
+  else if(le){let x=new Date(n.getFullYear(),n.getMonth(),+le[1],12);if(x.getTime()<now())x=new Date(n.getFullYear(),n.getMonth()+1,+le[1],12);date=dayKey(x)}
+  else if(!r.dateGuess)date=r.date;else date=q.date;
+  r.date=date;r.dateGuess=false;
+  // Ville : celle écrite (« à Rouen », « à New York ») ou celle de la recherche
+  const ci=t.match(/\b(?:à|a|sur|dans|vers)\s+([A-ZÀ-Ý][\p{L}'’-]+(?:\s+[A-ZÀ-Ý][\p{L}'’-]+)?)/u);const known=S.companions.map(c=>c.city).find(cn=>s.includes(normCity(cn)));
+  r.city=ci?cityTitle(ci[1]):known||q.city;
+  r.time=r.at!=null?`${String(r.at).padStart(2,'0')}:00`:null;return r}
+function runAssist2(text){const r=parseAsk2(text),q=hsDefaults(),cnt=S.companions.filter(c=>sameCity(c.city,r.city)).map(c=>compCountry(c));const country=cnt[0]||q.country;
+  const base={city:r.city,country,date:r.date,dur:r.dur,cat:r.act||''};let R;
+  if(r.time)R=searchRun({...base,time:r.time});
+  else{const per=r.per||[8,22];let best=null;for(let h=per[0];h<per[1]&&h<=21;h++){const x=searchRun({...base,time:`${String(h).padStart(2,'0')}:00`});if(x.items.length){best=x;break}if(!best)best=x}R=best||searchRun({...base,time:'14:00'})}
+  if(r.lang)R.items=R.items.filter(c=>c.langs.includes(r.lang));
+  S.assist={v2:true,r,R,text};S.assistQ=text;log(S.users.u1.name||'Client','Assistant : recherche d\'accompagnateurs','—')}
+function assistHtml2(o){const {r,R}=o,q=R.q;
+  const summary=`Pour votre sortie${q.cat&&q.cat!=='autre'?` « ${esc(catName(q.cat))} »`:''} à <b>${esc(R.city)}</b> le <b>${esc(R.dl)}</b>${r.time?` à ${fH(q.time)}`:''}, pendant ${DUR_TXT[q.dur]||q.dur+' heures'}${r.lang?`, avec une personne parlant ${r.lang.toLowerCase()}`:''}`;
+  if(R.items.length)return `<div class="stack"><p class="sm">${summary}, voici ${R.items.length>1?'les accompagnateurs qui peuvent':'l\'accompagnateur qui peut'} vous accompagner${r.time?'':` à partir de ${fH(q.time)}`} :</p>${R.items.slice(0,4).map(c=>{const cat=q.cat&&c.cats.includes(q.cat)?q.cat:c.cats[0],p=price(c.rate,+q.dur,0);
+    return `<div class="card row">${miniC(c)}<div class="grow"><b>${esc(c.name)}</b><div class="xs muted">${c.langs.join(', ')} · total estimé <span class="num">${eur(p.total)}</span></div></div><button class="btn pri xs" data-a="hs-book" data-id="${c.id}" data-v="${R.ts}|${q.dur}|${cat}">Choisir</button></div>`}).join('')}
+    <p class="xs muted">Vous pourrez vérifier tous les détails avant d'envoyer votre demande.</p></div>`;
+  return `<div class="stack"><p class="sm">${summary} : ${esc(R.msg.charAt(0).toLowerCase()+R.msg.slice(1))}</p>${R.sameDay.length?`<p class="sm">Je peux vous proposer d'autres horaires ce jour-là :</p><div class="row">${R.sameDay.slice(0,4).map(x=>`<button class="btn xs slot" data-a="hs-book" data-id="${x.c.id}" data-v="${x.t}|${q.dur}|${x.c.cats[0]}">${esc(x.c.name)} · ${fhour(x.t)}</button>`).join('')}</div>`:''}
+    <div class="row"><button class="btn xs" data-a="hs-edit">Modifier ma recherche</button><button class="btn xs pri" data-a="req-new">Publier ma demande</button></div></div>`}
+
+/* ---------- 12. Mon compte : un menu clair, une rubrique par écran, sans doublons ---------- */
+const ACC_ICO={profil:'<circle cx="12" cy="8" r="4"/><path d="M4 21a8 8 0 0 1 16 0"/>',identite:'<rect x="3" y="5" width="18" height="14" rx="2"/><circle cx="9" cy="11" r="2.5"/><path d="M14 10h4M14 14h4M6 16c.8-1.5 5.2-1.5 6 0"/>',
+  public:'<path d="M12 3l2.6 5.4 5.9.9-4.3 4.1 1 5.9L12 16.5 6.8 19.3l1-5.9L3.5 9.3l5.9-.9Z"/>',admin:'<path d="M6 3h9l4 4v14H6Z"/><path d="M14 3v5h5M9 13h7M9 17h7"/>',assurance:'<path d="M12 3 4 6v6c0 4.5 3.4 8.4 8 9 4.6-.6 8-4.5 8-9V6Z"/><path d="m9 12 2 2 4-4"/>',
+  versements:'<rect x="3" y="6" width="18" height="13" rx="2"/><path d="M3 10h18M7 15h4"/>',securite:'<rect x="5" y="10" width="14" height="10" rx="2"/><path d="M8 10V7a4 4 0 0 1 8 0v3"/>',prefs:'<path d="M4 6h10M18 6h2M4 12h4M12 12h8M4 18h12M20 18h0"/><circle cx="16" cy="6" r="2"/><circle cx="10" cy="12" r="2"/><circle cx="18" cy="18" r="2"/>',
+  notifs:'<path d="M6 16V11a6 6 0 0 1 12 0v5l2 2H4Z"/><path d="M10 20a2 2 0 0 0 4 0"/>',privee:'<path d="M12 3a9 9 0 1 0 0 18 9 9 0 0 0 0-18Z"/><path d="M9 12h6M12 9v6"/>',privilege:'<path d="m3 8 4 4 5-7 5 7 4-4-2 11H5Z"/>',cadeaux:'<rect x="3" y="9" width="18" height="12" rx="1"/><path d="M12 9v12M3 13h18M12 9C9 9 7 4 10 4s2 5 2 5 0-5 2-5 1 5-2 5"/>',
+  parrainage:'<circle cx="8" cy="9" r="3"/><circle cx="17" cy="9" r="3"/><path d="M2 20a6 6 0 0 1 12 0M12 20a6 6 0 0 1 10 0"/>',entreprise:'<rect x="4" y="3" width="16" height="18" rx="1"/><path d="M8 7h2M14 7h2M8 11h2M14 11h2M10 21v-4h4v4"/>',aide:'<circle cx="12" cy="12" r="9"/><path d="M9.5 9a2.5 2.5 0 1 1 3.5 2.3c-.6.3-1 .9-1 1.6V14M12 17h0"/>',legal:'<path d="M12 3v18M5 7h14M7 7l-3 7a3 3 0 0 0 6 0Zm10 0-3 7a3 3 0 0 0 6 0Z"/>'};
+const ACC_LBL={profil:['Mon profil','Photo, nom, e-mail, téléphone, pays et ville'],identite:['Vérification d\'identité','Pièce d\'identité ou passeport et selfie'],public:['Mon profil public','Présentation, activités, tarifs, photos et avis'],
+  admin:['Informations administratives','Statut, SIRET et justificatif'],assurance:['Mon assurance','Attestation de responsabilité civile'],versements:['Versements','Coordonnées bancaires chez Stripe'],
+  securite:['Sécurité','Mot de passe, Face ID, empreinte, contact de confiance, SOS'],prefs:['Mes préférences','Centres d\'intérêt, activités, langue, devise, thème, grands caractères'],
+  notifs:['Notifications','Réservations, messages, rappels, nouveautés, e-mails'],privee:['Confidentialité et données','Accusés de lecture, consentements, export, suppression du compte'],
+  privilege:['Side by Side Privilège','Abonnement et avantages'],cadeaux:['Cartes cadeaux','Offrir ou utiliser une carte'],parrainage:['Parrainage','Votre code et vos filleuls'],entreprise:['Espace entreprise','Réserver pour une entreprise'],
+  aide:['Aide et assistance','Questions fréquentes, assistance, contact, sécurité'],legal:['Informations légales','Conditions générales, confidentialité, charte, mentions légales']};
+const SEC_MAP=[[/^Vérification d'identité/,'identite'],[/^Confidentialité et suppression/,'privee'],[/^Affichage/,'prefs'],[/^Side by Side Privilège/,'privilege'],[/^Cartes cadeaux/,'cadeaux'],[/^Parrainage/,'parrainage'],[/entreprise/i,'entreprise'],
+  [/^Mon compte$/,'_drop'],[/^Session$/,'_drop'],[/^Mon profil$/,'public'],[/^Mes photos|^Photo/,'public'],[/^Informations administratives/,'admin'],[/^Coordonnées bancaires/,'versements'],[/^Mon assurance/,'assurance']];
+function accSections(role){const html=role==='client'?cAccount()+comfortCard()+privCard()+giftsCard()+refCard()+bizCard():pProfile()+pPhotoCard();
+  const t=document.createElement('template');t.innerHTML=html;const out={};
+  [...t.content.children].forEach(el=>{const h=((el.querySelector('h2,h3,.lbl')||{}).textContent||'').trim(),m=SEC_MAP.find(([re])=>re.test(h)),k=m?m[1]:(role==='client'?'profil':'public');if(k==='_drop')return;(out[k]=out[k]||[]).push(el.outerHTML)});return out}
+function accPage(role){const sec=accSections(role),sub=S.accSub,u=S.users.u1||{},c=comp('c1')||{};
+  if(sub){const [title]=ACC_LBL[sub]||['Mon compte'];return `<section class="section"><button class="accback" data-a="acc" data-v="">‹ Mon compte</button><h2>${title}</h2></section>`+accScreen(sub,role,sec)}
+  const name=role==='companion'?(c.name||''):(u.name||''),ok=role==='companion'?(c.idState||'')==='valide'||c.verified==='ok':u.verified==='ok';
+  const keys=['profil','identite',...(role==='companion'?['public','admin','assurance','versements']:[]),'securite','prefs','notifs','privee',...(role==='client'?['privilege','cadeaux','parrainage','entreprise'].filter(k=>sec[k]&&sec[k].join('').replace(/<[^>]+>/g,'').trim()):[]),'aide','legal'];
+  return `<section class="section"><h2>Mon compte</h2><div class="card row acchead">${accAvatar(role)}<div class="grow"><b>${esc(name||'—')}</b><div class="xs muted">${esc(cityTitle(role==='companion'?c.city:u.city)||'')}${(role==='companion'?c.city:u.city)?' · ':''}${role==='companion'?'accompagnateur':S.biz?'entreprise':'client'}</div></div>${ok?'<span class="pill t-ok">Identité vérifiée</span>':'<span class="pill t-warn">Identité à vérifier</span>'}</div>
+  <nav class="accmenu card" aria-label="Mon compte">${keys.map(k=>`<button class="accrow" data-a="acc" data-v="${k}"><span class="accico"><svg viewBox="0 0 24 24" aria-hidden="true">${ACC_ICO[k]||ACC_ICO.profil}</svg></span><span class="grow"><b>${ACC_LBL[k][0]}</b><small>${ACC_LBL[k][1]}</small></span><span aria-hidden="true" class="chev">›</span></button>`).join('')}</nav>
+  <button class="btn bad full" data-a="logout">Se déconnecter</button></section>`}
+function accAvatar(role){const u=S.users.u1||{},av=role==='client'?u.avatar:(comp('c1')||{}).avatarUrl;const n=role==='companion'?((comp('c1')||{}).name||'?'):(u.name||'?');
+  return av?`<img class="accav" src="${esc(av)}" alt="">`:role==='companion'&&comp('c1')?miniC(comp('c1')):`<div class="mini" style="--h:190">${esc(n[0]||'?')}</div>`}
+function verPill(ok,label){return ok?`<span class="pill t-ok">${label} vérifié${label==='E-mail'?'':''}</span>`:`<span class="pill t-warn">${label} non vérifié</span>`}
+function accScreen(k,role,sec){const u=S.users.u1||{},c=comp('c1')||{},P=role==='companion'?c:u,more=(sec[k]||[]).join('');
+  if(k==='profil'){const emailOk=LIVE?!!(ME&&ME._emailConfirmed):true,phoneOk=LIVE?false:P.phoneOk!==false,tel=LIVE?(ME&&ME.phone||''):(P.tel||u.tel||'06 12 34 56 78');
+    return `<section class="section"><form class="card stack" data-form="acc-profile">
+    <div class="row">${accAvatar(role)}<label class="filepick"><input type="file" name="photo" accept="image/jpeg,image/png"><span>Changer ma photo</span></label></div>
+    ${role==='companion'?'<p class="xs muted">Vos photos publiques se gèrent dans « Mon profil public » et sont vérifiées avant publication.</p>':''}
+    <div class="two"><div class="field"><label for="ap-f">Prénom</label><input id="ap-f" name="first" value="${esc(LIVE&&ME?ME.first_name:(P.name||''))}" autocomplete="given-name"></div><div class="field"><label for="ap-l">Nom</label><input id="ap-l" name="last" value="${esc(LIVE&&ME?(ME.last_name==='-'?'':ME.last_name):(P.last||''))}" autocomplete="family-name"></div></div>
+    <div class="field"><label for="ap-e">Adresse e-mail</label><input id="ap-e" name="email" type="email" value="${esc(LIVE&&ME?ME._email||'':(P.email||'sophie.martin@exemple.fr'))}" autocomplete="email"><span class="xs">${emailOk?'<span class="t-ok">✓ Adresse confirmée</span>':'<span class="t-warn">Adresse non confirmée : ouvrez le lien reçu par e-mail</span>'}</span></div>
+    <div class="field"><label for="ap-t">Téléphone mobile</label><div class="row" style="flex-wrap:nowrap"><select name="dial" aria-label="Indicatif" style="max-width:9.5em">${dialOpts(LIVE&&ME?(COUNTRIES.find(x=>(ME.phone||'').startsWith(x[2]))||['FR'])[0]:'FR')}</select><input id="ap-t" name="tel" type="tel" value="${esc(String(tel).replace(/^\+\d{1,3}/,''))}" autocomplete="tel-national" style="flex:1;min-width:0"></div>
+    <span class="xs">${phoneOk?'<span class="t-ok">✓ Numéro vérifié par SMS</span>':'<span class="t-warn">Numéro non vérifié : la vérification par SMS sera disponible prochainement</span>'}</span></div>
+    <div class="two"><div class="field"><label for="ap-c">Pays</label><select id="ap-c" name="country">${countryOpts(LIVE&&ME?ME.country||'FR':(P.country||'FR'))}</select></div><div class="field"><label for="ap-v">Ville</label><input id="ap-v" name="city" list="dl-ap" value="${esc(LIVE&&ME?ME.city||'':(P.city||''))}" autocomplete="address-level2">${cityList('dl-ap')}</div></div>
+    <p class="note t-bad sm" id="ap-err" hidden></p><button class="btn pri">Enregistrer</button></form></section>`}
+  if(k==='securite'){const bio=S.bioInfo;return `<section class="section"><form class="card stack" data-form="acc-pw"><h3>Mot de passe</h3>${LIVE?`<div class="field"><label for="as-0">Mot de passe actuel</label><div class="pwwrap"><input id="as-0" name="old" type="password" autocomplete="current-password">${eyeBtn('as-0')}</div></div>`:''}
+    <div class="field"><label for="as-1">Nouveau mot de passe</label><div class="pwwrap"><input id="as-1" name="pw" type="password" autocomplete="new-password">${eyeBtn('as-1')}</div><span class="xs muted">10 caractères minimum, avec au moins une lettre et un chiffre.</span></div>
+    <div class="field"><label for="as-2">Confirmation</label><div class="pwwrap"><input id="as-2" name="pw2" type="password" autocomplete="new-password">${eyeBtn('as-2')}</div></div><p class="note t-bad sm" id="as-err" hidden></p><button class="btn">Modifier mon mot de passe</button></form>
+    <div class="card stack"><h3>Face ID et empreinte digitale</h3>${bio&&bio.ok?`<label class="row sm"><input type="checkbox" data-a="bio-toggle" ${bioOn()?'checked':''}> Déverrouiller l'application avec ${bio.label}</label><p class="xs muted">Disponible sur ce téléphone. Votre empreinte ou votre visage ne quittent jamais l'appareil.</p>`
+      :`<p class="sm muted">${bio&&bio.checked?'Aucun Face ID ni empreinte digitale n\'est configuré sur cet appareil.':'Disponible uniquement dans l\'application mobile, sur un appareil compatible.'}</p>`}</div>
+    <form class="card stack" data-form="acc-safety"><h3>Contact de confiance et SOS</h3><div class="field"><label for="as-tc">Contact de confiance (prévenu en cas de SOS)</label><input id="as-tc" name="trusted" value="${esc(u.trusted||'')}" placeholder="Nom et numéro de téléphone"></div>
+    <label class="row sm"><input type="checkbox" name="loc" ${u.consentLoc?'checked':''}> J'accepte le partage temporaire de ma position, uniquement quand j'active le SOS</label><button class="btn">Enregistrer</button><button type="button" class="btn ghost" data-a="security">Ouvrir le centre de sécurité (SOS, numéros d'urgence)</button></form></section>`}
+  if(k==='prefs'){const ints=u.interests||[],acts=u.activities||[],th=document.documentElement.dataset.theme||'dark';
+    return `<section class="section"><form class="card stack" data-form="acc-prefs"><span class="fl">Centres d'intérêt</span><div class="days">${HOBBIES.map(x=>`<label><input type="checkbox" name="int" value="${x}" ${ints.includes(x)?'checked':''}>${x}</label>`).join('')}</div>
+    <span class="fl">Activités préférées (pour les suggestions)</span><div class="days">${S.cats.filter(x=>x.on).map(x=>`<label><input type="checkbox" name="act" value="${x.id}" ${acts.includes(x.id)||(u.interests||[]).includes(x.id)?'checked':''}>${esc(x.name)}</label>`).join('')}</div>
+    <div class="two"><div class="field"><label for="pf-l">Langue</label><select id="pf-l" name="lang">${[['fr','Français'],['en','English'],['es','Español'],['it','Italiano'],['de','Deutsch'],['pt','Português'],['ar','العربية']].map(([l,n])=>`<option value="${l}" ${l===S.lang?'selected':''}>${n}</option>`).join('')}</select></div>
+    <div class="field"><label for="pf-c">Devise d'affichage</label><select id="pf-c" name="cur">${Object.keys(RATES).map(x=>`<option ${x===S.cur?'selected':''}>${x}</option>`).join('')}</select></div></div><span class="xs muted">Paiement toujours en euros. Les autres devises sont indicatives.</span>
+    <span class="fl">Thème</span><div class="days"><label><input type="radio" name="theme" value="dark" ${th==='dark'?'checked':''}>Sombre (bleu nuit)</label><label><input type="radio" name="theme" value="light" ${th==='light'?'checked':''}>Clair</label></div>
+    <button class="btn pri">Enregistrer</button></form></section>${more}`}
+  if(k==='notifs'){const n=u.notif||['resa','msg','rappel'],ep=(LIVE&&ME&&ME.email_prefs)||u.emailPrefs||{resa:true,msg:true,rappel:true,news:false};
+    return `<section class="section"><form class="card stack" data-form="acc-notifs"><h3>Dans l'application</h3><div class="days">${[['resa','Réservations'],['msg','Messages'],['rappel','Rappels'],['offres','Nouveautés Side by Side']].map(([x,l])=>`<label><input type="checkbox" name="nt" value="${x}" ${n.includes(x)?'checked':''}>${l}</label>`).join('')}</div>
+    <h3>Par e-mail</h3><div class="days">${[['resa','Réservations'],['msg','Messages'],['rappel','Rappels'],['news','Nouveautés Side by Side']].map(([x,l])=>`<label><input type="checkbox" name="em" value="${x}" ${ep[x]?'checked':''}>${l}</label>`).join('')}</div>
+    <p class="xs muted">Les messages de sécurité (SOS, connexion, mot de passe) sont toujours envoyés.</p><button class="btn pri">Enregistrer</button><button type="button" class="btn ghost" data-a="notifs">Voir mes notifications</button></form></section>`}
+  if(k==='aide')return `<section class="section"><div class="card stack"><button class="accrow" data-a="help"><span class="grow"><b>Questions fréquentes et assistance</b><small>Réservations, paiements, annulations, sécurité</small></span><span class="chev">›</span></button>
+    <button class="accrow" data-a="security"><span class="grow"><b>Informations relatives à la sécurité</b><small>Centre de sécurité, SOS, numéros d'urgence</small></span><span class="chev">›</span></button>
+    <div class="stack"><b>Contact</b><span class="sm sel">contact@zyntell.fr</span><span class="xs muted">Zyntell — Side by Side, 14 rue de Binche, 76150 Maromme</span></div></div></section>`;
+  if(k==='legal')return `<section class="section"><div class="card stack">${legalListHtml()}</div></section>`;
+  return more||'<section class="section"><p class="muted">Rien à afficher pour le moment.</p></section>'}
+const HOBBIES=['Art','Histoire','Gastronomie','Nature','Musique','Cinéma','Sport','Mode','Littérature','Photographie','Voyages','Technologie'];
+const bioOn=()=>{try{return localStorage.getItem('sbs-bio')==='1'}catch(e){return false}};
+const BioP=()=>window.Capacitor&&Capacitor.isNativePlatform&&Capacitor.isNativePlatform()&&Capacitor.Plugins&&Capacitor.Plugins.BiometricAuthNative;
+async function bioCheck(){const P=BioP();if(!P){S.bioInfo={ok:false,checked:false};return}try{const r=await P.checkBiometry();const t=r&&r.biometryType;S.bioInfo={ok:!!(r&&r.isAvailable),checked:true,label:[0,'Touch ID','Face ID','l\'empreinte digitale','la reconnaissance faciale','la reconnaissance de l\'iris'][t]||'Face ID ou l\'empreinte digitale'}}catch(e){S.bioInfo={ok:false,checked:true}}}
+async function bioAuth(){const P=BioP();if(!P)return false;try{await P.internalAuthenticate({reason:'Déverrouiller Side by Side',cancelTitle:'Annuler',allowDeviceCredential:true,iosFallbackTitle:'Utiliser le code',androidTitle:'Side by Side',androidSubtitle:'Déverrouiller l\'application',androidConfirmationRequired:false});return true}catch(e){return false}}
+function bioLockPage(){return `<main class="login"><div class="wrap login-in lockpage">${loginLogo()}<p class="login-tag">Déverrouillez Side by Side</p><button class="faceid" data-a="bio-native" aria-label="Déverrouiller"><svg viewBox="0 0 64 64" aria-hidden="true"><path d="M6 20V12a6 6 0 0 1 6-6h8M44 6h8a6 6 0 0 1 6 6v8M58 44v8a6 6 0 0 1-6 6h-8M20 58h-8a6 6 0 0 1-6-6v-8"/><path d="M24 24v4M40 24v4M32 26v10h-3M25 44c4 3 10 3 14 0"/></svg></button>
+  <div class="login-links"><button class="btn ghost" data-a="bio-pwd">Utiliser mon mot de passe</button></div></div></main>`}
+
+/* ---------- Actions ---------- */
+function v29Click(a,el,id,v,b){switch(a){
+  case'pw-eye':{const i=document.getElementById(v);if(!i)return false;const show=i.type==='password';i.type=show?'text':'password';el.setAttribute('aria-pressed',show?'true':'false');el.setAttribute('aria-label',show?'Masquer le mot de passe':'Afficher le mot de passe');el.classList.toggle('on',show);return false}
+  case'oauth':oauthStart(v);return false;
+  case'su-prev':{const f=document.querySelector('form[data-form="su3"]');if(f)su3Capture(f);S.su.err={};S.su.page=Math.max(1,(S.su.page||1)-1);scrollTo(0,0);return true}
+  case'su-sms':{const f=document.querySelector('form[data-form="su3"]');if(f)su3Capture(f);const su=S.su,pe=phoneErr(su.v.dial||'FR',su.v.tel);if(pe){su.err.tel=tr(pe);return true}
+    delete su.err.tel;su.smsSent=true;su.code=String(crypto.getRandomValues(new Uint32Array(1))[0]%900000+100000);setTimeout(()=>{smsBanner(su.code);const s=document.getElementById('su-sms');s&&s.focus()},50);return true}
+  case'cp-cancel':S.cp=null;S.liveAuth={mode:'login'};if(LIVE)SB.auth.signOut();return true;
+  case'hs-edit':{S.hsEdit=true;if(S.tab!=='home'){S.tab='home'}S.sheet=null;setTimeout(()=>{const f=document.getElementById('hs-form');if(f){f.scrollIntoView({block:'start',behavior:'smooth'});const c=document.getElementById('hs-city');c&&c.focus()}},60);return true}
+  case'hs-book':{const [t,d,cat]=String(v).split('|');open('book',{cid:id,start:+t,hours:+d,cat});return true}
+  case'req-new':open('reqnew');return true;
+  case'req-book':{S.pendingReq=v;const r=myReqs().find(x=>x.id===v);open('book',{cid:id,start:r?r.start:undefined,hours:r?r.hours:2,cat:r&&r.cat!=='autre'?r.cat:undefined});return true}
+  case'req-cancel':{if(LIVE){SB.from('open_requests').update({status:'annulee'}).eq('id',v).then(({error})=>{tr_(error?'Annulation impossible.':'Demande retirée.',!!error);liveReqLoad()});return false}
+    const r=(S.openReqs||[]).find(x=>x.id===v);if(r)r.status='annulee';toast('Demande retirée.');return true}
+  case'acc':S.accSub=v||null;scrollTo(0,0);if(v==='securite')bioCheck().then(render);return true;
+  case'bio-toggle':{if(!el.checked){try{localStorage.removeItem('sbs-bio')}catch(e){}if(LIVE)SB.from('profiles').update({biometric_unlock:false}).eq('id',ME.id);toast('Déverrouillage biométrique désactivé.');return false}
+    bioAuth().then(ok=>{if(!ok){el.checked=false;toast('Vérification annulée.',true);return}try{localStorage.setItem('sbs-bio','1')}catch(e){}if(LIVE)SB.from('profiles').update({biometric_unlock:true}).eq('id',ME.id);toast('Déverrouillage biométrique activé.')});return false}
+  case'bio-native':bioAuth().then(ok=>{if(ok){S.bioLock=false;S.bioOk=true;liveLoad()}else toast('Déverrouillage annulé.',true)});return false;
+  case'bio-pwd':S.bioLock=false;S.bioOk=true;try{localStorage.removeItem('sbs-bio')}catch(e){}if(LIVE)SB.auth.signOut();S.liveAuth={mode:'login'};return true;
+  case'logout':S.accSub=null;return false;
+  case'flash-off':S.bookFlash=false;return true;
+  default:return false}}
+function v29Submit(k,f,d){const fd=new FormData(f),err=(id,m)=>{const p=document.getElementById(id);if(p){p.textContent=tr(m);p.hidden=false}return 'stop'};
+  if(k==='su3')return su3Submit(f);
+  if(k==='live-reset'&&LIVE){if(!/^\S+@\S+\.\S{2,}$/.test(d.email||'')){toast('Adresse e-mail invalide.',true);return 'stop'}
+    S.liveAuth={mode:'login',email:d.email,recovery:true};SB.auth.resetPasswordForEmail(d.email.trim(),{redirectTo:DEEP_LINK}).then(()=>{toast('Si un compte existe, un lien vient d\'être envoyé. Ouvrez-le depuis ce téléphone.');render()});return 'stop'}
+  if(k==='live-newpw'){const pw=d.pw||'';if(pw.length<10||!/[A-Za-z]/.test(pw)||!/\d/.test(pw))return err('np-err','10 caractères minimum, avec au moins une lettre et un chiffre.');if(pw!==d.pw2)return err('np-err','Les deux mots de passe ne correspondent pas.');
+    SB.auth.updateUser({password:pw}).then(({error})=>{if(error)return err('np-err',/same|different/i.test(error.message)?'Choisissez un mot de passe différent de l\'ancien.':'Lien expiré : demandez un nouveau lien.');toast('Mot de passe modifié.');S.liveAuth={mode:'login'};liveLoad()});return 'stop'}
+  if(k==='live-complete'){const v={...S.cp,...d,nc:!!d.nc};S.cp=v;
+    if(!d.first||d.first.trim().length<2||!d.last||!d.last.trim())return err('cp-err','Indiquez votre prénom et votre nom.');if(!d.dob)return err('cp-err','Indiquez votre date de naissance.');{const b=new Date(d.dob+'T12:00:00'),a=new Date();a.setFullYear(a.getFullYear()-18);if(b>a)return err('cp-err','Inscription impossible : Side by Side est réservé aux personnes majeures.')}
+    if(!String(d.city||'').trim())return err('cp-err','Indiquez votre ville.');const pe=phoneErr(d.dial,d.tel);if(pe)return err('cp-err',pe);
+    if(!d.terms||!d.privacy||!d.charter||!d.adult)return err('cp-err','Acceptez les conditions, la politique de confidentialité, la charte et confirmez votre majorité.');if(d.role==='companion'&&!d.nc)return err('cp-err','L\'engagement de non-contournement est obligatoire pour les accompagnateurs.');
+    liveCall('complete-profile',{role:d.role,first_name:d.first.trim(),last_name:d.last.trim(),birth_date:d.dob,country:d.country,city:cityTitle(d.city),phone:phoneE164(d.dial,d.tel),lang:S.lang,time_zone:ctry(d.country)[3],terms:true,privacy:true,charter:true,adult:true,non_circumvention:!!d.nc})
+      .then(()=>{S.cp=null;S.liveAuth={mode:'login'};toast('Inscription terminée. Bienvenue sur Side by Side !');liveLoad()}).catch(e=>err('cp-err',e.message));return 'stop'}
+  if(k==='hsearch2'){const city=String(d.city||'').trim();if(!city)return err('hs-err','Indiquez la ville de votre sortie.');if(!d.date)return err('hs-err','Choisissez la date de votre sortie.');
+    S.hs={city:cityTitle(city),country:d.country||'FR',date:d.date,time:d.time,dur:+d.dur,cat:d.cat||'',done:true};S.hsEdit=false;S.home.city=S.hs.city;S.home.date=d.date;
+    setTimeout(()=>{const r=document.getElementById('hs-res');r&&r.scrollIntoView({block:'start',behavior:'smooth'})},60);return true}
+  if(k==='req-new'){const city=String(d.city||'').trim();if(!city)return err('rq-err','Indiquez la ville.');const ts=zonedTs(d.date,d.time,ctry(d.country)[3]);if(!d.date||ts<now()+24*H)return err('rq-err','Choisissez une date au moins 24 h à l\'avance.');
+    const r={city:cityTitle(city),country:d.country,start:ts,hours:+d.dur,cat:d.cat,note:String(d.note||'').trim().slice(0,500)};
+    if(LIVE){SB.from('open_requests').insert({client_id:ME.id,city:r.city,country:r.country,starts_at:new Date(ts).toISOString(),hours:r.hours,category:r.cat,note:r.note||null}).then(({error})=>{if(error)return tr_(/5 demandes/.test(error.message)?'Vous avez déjà publié 5 demandes aujourd\'hui.':'Publication impossible : vérifiez d\'abord votre identité.',true);S.sheet=null;tr_('Demande publiée : vous serez prévenu(e) à chaque proposition.');liveReqLoad()});return 'stop'}
+    (S.openReqs=S.openReqs||[]).push({id:'rq'+Date.now(),clientId:'u1',first_name:S.users.u1.name,status:'ouverte',offers:[],...r});S.sheet=null;notify('companion',`Nouvelle demande de sortie à ${r.city} le ${fdt(ts)}.`);toast('Demande publiée : vous serez prévenu(e) à chaque proposition.');return true}
+  if(k==='req-search'){S.reqCity=String(d.city||'').trim();S.reqCountry=d.country;if(LIVE)liveOpenLoad();return true}
+  if(k==='req-offer'){const msg=String(d.msg||'').trim().slice(0,300);if(LIVE){SB.from('request_offers').insert({request_id:f.dataset.id,companion_id:ME.id,message:msg||null}).then(({error})=>{tr_(error?(/réservation/.test(error.message)?'Vous avez déjà une réservation sur ce créneau.':/Assurance/.test(error.message)?'Attestation d\'assurance à jour requise.':'Proposition impossible.'):'Proposition envoyée au client.',!!error);liveOpenLoad()});return 'stop'}
+    const r=(S.openReqs||[]).find(x=>x.id===f.dataset.id);if(!r||!freeForOffer(r)){toast('Vous avez déjà une réservation sur ce créneau.',true);return 'stop'}if(typeof insOk==='function'&&!insOk('c1',r.start,r.hours)){toast('Attestation d\'assurance à jour requise.',true);return 'stop'}
+    r.offers.push({cid:'c1',message:msg,status:'proposee'});if(r.clientId==='u1')notify('client',`${comp('c1').name} propose de vous accompagner pour votre sortie à ${r.city}.`);toast('Proposition envoyée au client.');return true}
+  if(k==='acc-profile'){const first=String(d.first||'').trim(),last=String(d.last||'').trim(),city=cityTitle(d.city||'');if(first.length<2)return err('ap-err','Indiquez votre prénom.');const pe=d.tel?phoneErr(d.dial,d.tel):'';if(pe)return err('ap-err',pe);
+    const file=f.querySelector('[name=photo]').files[0];if(file&&(file.size>5*1024*1024||!/^image\/(jpeg|png)$/.test(file.type)))return err('ap-err','Photo : JPG ou PNG, 5 Mo maximum.');
+    if(LIVE){(async()=>{let avatar_path;if(file){avatar_path=`${ME.id}/avatar-${Date.now()}.${file.type==='image/png'?'png':'jpg'}`;const up=await SB.storage.from('photos').upload(avatar_path,file,{contentType:file.type});if(up.error)return tr_('Envoi de la photo impossible.',true)}
+      const {error}=await SB.from('profiles').update({first_name:first,last_name:last||'-',city,country:d.country,phone:d.tel?phoneE164(d.dial,d.tel):null,...(avatar_path?{avatar_path}:{})}).eq('id',ME.id);if(error)return tr_(/phone/.test(error.message)?'Ce numéro est déjà utilisé.':'Enregistrement impossible.',true);
+      if(d.email&&d.email.trim()!==ME._email){const r=await SB.auth.updateUser({email:d.email.trim()},{emailRedirectTo:DEEP_LINK});tr_(r.error?'Changement d\'e-mail impossible.':'Profil enregistré. Confirmez votre nouvelle adresse avec le lien reçu par e-mail.',!!r.error)}else tr_('Profil enregistré.');liveLoad()})();return 'stop'}
+    const P=S.role==='companion'?comp('c1'):S.users.u1;P.name=first;P.last=last;P.city=city;P.country=d.country;if(d.email)P.email=d.email.trim();if(d.tel){if((P.tel||'06 12 34 56 78')!==d.tel)P.phoneOk=false;P.tel=d.tel}if(file&&S.role==='client')S.users.u1.avatar=URL.createObjectURL(file);toast('Profil enregistré.');return true}
+  if(k==='acc-pw'){const pw=d.pw||'';if(pw.length<10||!/[A-Za-z]/.test(pw)||!/\d/.test(pw))return err('as-err','10 caractères minimum, avec au moins une lettre et un chiffre.');if(pw!==d.pw2)return err('as-err','Les deux mots de passe ne correspondent pas.');
+    if(LIVE){if(!d.old)return err('as-err','Saisissez votre mot de passe actuel.');SB.auth.signInWithPassword({email:ME._email,password:d.old}).then(({error})=>{if(error)return err('as-err','Mot de passe actuel incorrect.');SB.auth.updateUser({password:pw}).then(({error:e2})=>{if(e2)return err('as-err','Modification impossible. Réessayez.');f.reset();tr_('Mot de passe modifié.')})});return 'stop'}
+    f.reset();toast('Démonstration : mot de passe modifié.');return 'stop'}
+  if(k==='acc-safety'){const u=S.users.u1;u.trusted=String(d.trusted||'').trim().slice(0,120);u.consentLoc=!!d.loc;if(LIVE)SB.from('profiles').update({trusted_contact:u.trusted||null}).eq('id',ME.id).then(({error})=>tr_(error?'Enregistrement impossible.':'Paramètres de sécurité enregistrés.',!!error));else toast('Paramètres de sécurité enregistrés.');log(u.name||'Membre','Paramètres de sécurité mis à jour','—');return true}
+  if(k==='acc-prefs'){const u=S.users.u1;u.interests=fd.getAll('int');u.activities=fd.getAll('act');S.cur=d.cur||'EUR';if(d.lang&&d.lang!==S.lang){S.lang=d.lang;try{localStorage.setItem('sbs-lang',d.lang)}catch(e){}}if(d.theme)document.documentElement.dataset.theme=d.theme;
+    if(LIVE)SB.from('profiles').update({lang:S.lang,interests:u.interests,activities:u.activities}).eq('id',ME.id).then(({error})=>tr_(error?'Enregistrement impossible.':'Préférences enregistrées.',!!error));else toast('Préférences enregistrées.');return true}
+  if(k==='acc-notifs'){const u=S.users.u1,em=fd.getAll('em');u.notif=fd.getAll('nt');u.emailPrefs={resa:em.includes('resa'),msg:em.includes('msg'),rappel:em.includes('rappel'),news:em.includes('news'),app:u.notif};
+    if(LIVE){ME.email_prefs=u.emailPrefs;SB.from('profiles').update({email_prefs:u.emailPrefs}).eq('id',ME.id).then(({error})=>tr_(error?'Enregistrement impossible.':'Préférences de notification enregistrées.',!!error))}else toast('Préférences de notification enregistrées.');return true}
+  return false}
+function v29Change(el){const f=el.form;if(!f)return false;
+  if(f.dataset.form==='su3'){su3Capture(f);if(['type','dial','country'].includes(el.name)){if(el.name==='country')S.su.v.dial=el.value;render()}return true}
+  if(f.dataset.form==='live-complete'){S.cp={...(S.cp||{}),...Object.fromEntries(new FormData(f))};if(el.name==='role'||el.name==='country'){if(el.name==='country')S.cp.dial=el.value;render()}return true}
+  return false}
+
+/* ---------- Mode connecté : demandes de sortie ---------- */
+function liveReqLoad(){if(!LIVE||!ME||ME.role==='companion')return;Promise.all([SB.from('open_requests').select('*').eq('client_id',ME.id).order('starts_at'),SB.rpc('my_request_offers')]).then(([a,b])=>{
+  S.liveReqs=(a.data||[]).map(r=>({id:r.id,city:r.city,country:r.country,start:Date.parse(r.starts_at),hours:r.hours,cat:r.category,note:r.note,status:r.status}));
+  S.liveOffers=(b.data||[]).map(o=>({request_id:o.request_id,cid:aliasOf(o.companion_id),first_name:o.first_name,hourly_rate:o.hourly_rate,message:o.message,status:o.status}));render()})}
+function liveOpenLoad(){if(!LIVE||!ME||ME.role!=='companion')return;SB.rpc('search_open_requests',{p_city:S.reqCity||null,p_country:S.reqCountry||null}).then(({data})=>{
+  S.liveOpen=(data||[]).map(r=>({id:r.id,city:r.city,country:r.country,start:Date.parse(r.starts_at),hours:r.hours,cat:r.category,note:r.note,first_name:r.client_first_name,mine:r.mine}));render()})}
+
+/* ---------- Initialisation ---------- */
+function v29Init(){if(window.__v29)return;window.__v29=1;
+  signupPage=signup3;runAssist=runAssist2;const _ah=assistHtml;assistHtml=o=>o&&o.v2?assistHtml2(o):_ah(o);
+  const _ec=extChange;extChange=el=>v29Change(el)||_ec(el);
+  EXTRA_SHEETS.reqnew=(s,h)=>reqSheet(s,h);
+  // Accueil client : « Quelle sortie souhaitez-vous faire ? » ; assistant en langage naturel
+  const _ch=cHome;cHome=(...x)=>{const q=hsDefaults();let h=_ch(...x);
+    h=h.replace(/<form class="card stack" data-form="hsearch">[\s\S]*?<\/form>/,homeSearchCard()+(q.done?`<div id="hs-res" class="stack">${resultsHtml(searchRun(q))}</div>`:'')+myReqsHtml());
+    h=h.replace(/Décrivez votre sortie : je cherche les créneaux réellement disponibles\./,'Bonjour ! Décrivez-moi la sortie que vous souhaitez faire, je vous aiderai à trouver un accompagnateur.')
+     .replace(/Ex\. : visiter Paris samedi avec une personne parlant anglais pendant 3 heures/,'Ex. : une visite de musée à Paris le 30 novembre vers 14 h pendant 2 heures');
+    h=h.replace(/<div class="empty">Personne n'est disponible ce jour-là à ([^.<]*)\. Essayez une autre date\.<\/div>/,(m,c)=>`<div class="empty">Aucun accompagnateur n'est disponible à ${c} le ${esc(fLongDay(S.home.date))}.</div>`);
+    return h.replace(/<p class="xs muted">Je ne réserve rien sans votre validation\.[^<]*<\/p>/g,'')};
+  // Explorer : ville en saisie libre (aucune liste fermée), comparaison sans accents ni majuscules
+  const _ce=cExplore;cExplore=(...x)=>_ce(...x).replace(/<select id="f-city" data-f="city">[\s\S]*?<\/select>/,`<input id="f-city" data-f="city" list="dl-fx" value="${esc(S.filters.city||'')}" placeholder="Toutes les villes" autocomplete="address-level2">${cityList('dl-fx')}`);
+  visibleCompanions=function(){const f=S.filters,q=(f.q||'').toLowerCase().trim();return S.companions.filter(c=>c.verified==='ok'&&!c.suspended&&videoOk(c)&&!(c.photo&&c.photo.status==='review')&&(!f.city||sameCity(c.city,f.city))&&(!f.cat||c.cats.includes(f.cat))&&(!f.lang||c.langs.includes(f.lang))&&(!f.tier||c.tier===f.tier)&&c.rate<=f.max&&c.rate>=(f.min||0)&&(!f.rating||(+rating(c.id).avg||0)>=f.rating)&&(!f.radius||(c.km||0)<=f.radius)&&(!f.date||slots(c,f.date,f.dur||2).length)&&(!q||[c.name,c.bio,c.city,c.area,...c.cats.map(catName),...(c.interests||[]),...c.langs].join(' ').toLowerCase().includes(q)))};
+  // Accompagnateur : demandes de sa ville par défaut, recherche dans une autre ville
+  const _pr=pRequests;pRequests=(...x)=>_pr(...x)+compReqsHtml();
+  // Mon compte : menu organisé (client et accompagnateur)
+  window.accClient=()=>accPage('client');window.accCompanion=()=>accPage('companion');
+  // Réservation : message de confirmation au bon moment
+  const _cr=api.create.bind(api);api.create=(cid,fm)=>{const r=_cr(cid,fm);if(r&&!r.err){r.msg='Votre réservation sera confirmée dès que l\'accompagnateur aura accepté votre demande.';S.bookFlash=true;
+    if(!LIVE&&S.pendingReq){const q=(S.openReqs||[]).find(x=>x.id===S.pendingReq);if(q){q.status='pourvue';(q.offers||[]).forEach(o=>{if(o.cid===cid)o.status='retenue'})}S.pendingReq=null}}return r};
+  const _cb=cBookings;cBookings=(...x)=>(S.bookFlash?`<section class="section"><div class="note t-info sm row"><span class="grow">Votre réservation sera confirmée dès que l'accompagnateur aura accepté votre demande.</span><button class="btn ghost xs" data-a="flash-off" aria-label="Fermer">✕</button></div></section>`:'')+_cb(...x);
+  // Démonstration : quelques demandes de sortie publiées par d'autres clients, et deux accompagnateurs hors de Paris
+  if(!S.openReqs){const d=n=>{const x=new Date(now()+n*DAY);x.setHours(15,0,0,0);return x.getTime()};
+    S.openReqs=[{id:'rq1',clientId:'u3',first_name:'Léa',city:'Paris',country:'FR',start:d(4),hours:2,cat:'musees',note:'Exposition au musée d\'Orsay',status:'ouverte',offers:[]},
+      {id:'rq2',clientId:'u4',first_name:'Karim',city:'Paris',country:'FR',start:d(6),hours:3,cat:'promenades',note:'',status:'ouverte',offers:[]},
+      {id:'rq3',clientId:'u2',first_name:'Marc',city:'Rouen',country:'FR',start:d(5),hours:2,cat:'restaurants',note:'Déjeuner dans le Vieux-Rouen',status:'ouverte',offers:[]},
+      {id:'rq4',clientId:'u2',first_name:'Marc',city:'Lyon',country:'FR',start:d(8),hours:2,cat:'shopping',note:'',status:'ouverte',offers:[]}]}
+  const base=S.companions.find(c=>c.id==='c2');if(base&&!S.companions.some(c=>c.id==='c20')){
+    S.companions.push({...JSON.parse(JSON.stringify(base)),id:'c20',name:'Nadia',city:'Rouen',area:'Vieux-Rouen',country:'FR',hue:28,cats:['restaurants','musees','promenades'],langs:['Français','Arabe','Anglais'],rate:30,bio:'Rouennaise de cœur, je fais découvrir la ville aux cent clochers et ses bonnes tables.'},
+      {...JSON.parse(JSON.stringify(base)),id:'c21',name:'Oliver',city:'Londres',area:'Covent Garden',country:'GB',tz:'Europe/London',hue:210,cats:['musees','spectacles','promenades'],langs:['Anglais','Français'],rate:40,bio:'Guide à Londres depuis dix ans : musées, comédies musicales et marchés.'});
+    ['c20','c21'].forEach(id=>{const c=comp(id);if(typeof insState==='function')c.ins=[{id:'ins-'+id,insurer:'AXA',policy:'RC-'+id,start:isoDay(now()-60*DAY),end:isoDay(now()+300*DAY),status:'validee',created:now()-61*DAY}]})}
+  // Ergonomie : clavier, sélecteurs de fichiers, zones de sécurité
+  document.addEventListener('focusin',e=>{const t=e.target;if(!t.matches||!t.matches('input:not([type=checkbox]):not([type=radio]):not([type=file]),textarea'))return;document.documentElement.classList.add('kbd');setTimeout(()=>{try{t.scrollIntoView({block:'center',behavior:'smooth'})}catch(x){}},320)});
+  document.addEventListener('focusout',()=>setTimeout(()=>{const a=document.activeElement;if(!a||!a.matches||!a.matches('input,textarea'))document.documentElement.classList.remove('kbd')},120));
+  document.addEventListener('input',e=>{const f=e.target.form;if(f&&f.dataset.form==='su3'&&(e.target.name==='pw'||e.target.name==='pw2')){S.su.v[e.target.name]=e.target.value;pwLive()}});
+  document.addEventListener('change',e=>{const i=e.target;if(i.type==='file'){const l=i.closest('.filepick');if(l){const s=l.querySelector('span');if(s&&i.files[0])s.textContent=i.files[0].name}}});
+  // Mode connecté : écran d'accueil, liens de retour (e-mails, Google, Apple), profil à compléter, verrouillage biométrique
+  if(LIVE){const _ll=liveLogin;liveLogin=(...x)=>{const L=S.liveAuth||{};if(S.bioLock)return bioLockPage();if(L.mode==='newpw')return newPwPage();if(L.mode==='complete')return completePage();
+      let h=_ll(...x);h=h.replace(/<input id="lv-pw" name="pw" type="password" autocomplete="current-password">/,`<div class="pwwrap"><input id="lv-pw" name="pw" type="password" autocomplete="current-password">${eyeBtn('lv-pw')}</div>`);
+      return L.mode==='reset'?h:h.replace(/(<div class="login-links">[\s\S]*?<\/div>)(<\/form>)/,(m,a,b)=>a+b+oauthButtons())};
+    const _lo=liveLoad;let first=true;liveLoad=async(...x)=>{if(first){first=false;try{if(bioOn()&&BioP()&&!S.bioOk){S.bioLock=true;S.role=null;splashHide();render();return}}catch(e){}}
+      const r=await _lo(...x);splashHide();if(ME){try{const {data}=await SB.auth.getUser();ME._email=data.user&&data.user.email;ME._emailConfirmed=!!(data.user&&(data.user.email_confirmed_at||data.user.confirmed_at))}catch(e){}
+        const u=S.users.u1;u.country=ME.country||'FR';u.interests=ME.interests||[];u.activities=ME.activities||[];u.emailPrefs=ME.email_prefs;u.notif=(ME.email_prefs&&ME.email_prefs.app)||['resa','msg','rappel'];if(ME.lang&&ME.lang!==S.lang)S.lang=ME.lang;
+        if(!ME.birth_date&&ME.role!=='admin'){S.role=null;S.liveAuth={mode:'complete'};render();return r}liveReqLoad();liveOpenLoad()}return r};
+    const _ac=adaptCompanion;adaptCompanion=r=>({..._ac(r),country:r.country||'FR',tz:r.time_zone||undefined});
+    const _lc=liveCall;liveCall=(fn,body)=>{if(fn==='create-booking'&&S.pendingReq){body={...body,request_id:S.pendingReq};S.pendingReq=null}return _lc(fn,body)};
+    try{const A=Capacitor.Plugins&&Capacitor.Plugins.App;if(A){A.addListener('appUrlOpen',e=>authReturn(e.url));A.getLaunchUrl&&A.getLaunchUrl().then(r=>r&&r.url&&authReturn(r.url)).catch(()=>{})}}catch(e){}
+    if(/[?#&](code|access_token|error_description)=/.test(location.href))setTimeout(()=>authReturn(location.href).then(()=>history.replaceState(null,'',location.pathname)),0);
+    setTimeout(()=>{try{SB.auth.onAuthStateChange(ev=>{if(ev==='PASSWORD_RECOVERY'){S.liveAuth={mode:'newpw'};S.role=null;render()}})}catch(e){}},0)}
+  splashShow();setTimeout(splashHide,LIVE?1400:700)}
+
 
 /* ================= V2.5 — Mode connecté, lot 2 : mission, SOS, notifications, identité, RGPD, administration sécurisée =================
    Tout ce qui suit ne s'exécute qu'en mode connecté (application native). La démo en ligne ne change pas. */
