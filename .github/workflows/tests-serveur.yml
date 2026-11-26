@@ -17,6 +17,7 @@ jobs:
           # Double authentification TOTP (activée par défaut sur les projets Supabase hébergés)
           for CFG in $(find supabase -maxdepth 1 -name 'config.*'); do
             perl -0pi -e 's/(totp\W*\{[^}]*?)enroll_enabled(\W*)false/$1enroll_enabled$2true/s; s/(totp\W*\{[^}]*?)verify_enabled(\W*)false/$1verify_enabled$2true/s; s/(totp\W*\{[^}]*?)enrollEnabled(\W*)false/$1enrollEnabled$2true/s; s/(totp\W*\{[^}]*?)verifyEnabled(\W*)false/$1verifyEnabled$2true/s' "$CFG"
+            perl -0pi -e 's/(\[auth\.mfa\.totp\][^\[]*?)enroll_enabled\s*=\s*false/$1enroll_enabled = true/s; s/(\[auth\.mfa\.totp\][^\[]*?)verify_enabled\s*=\s*false/$1verify_enabled = true/s' "$CFG"
             echo "configuration : $CFG"; grep -n -i -A4 'totp' "$CFG" | head -12
           done
           npx -y supabase@2 start -x studio,imgproxy,vector,logflare,supavisor,postgres-meta,mailpit
