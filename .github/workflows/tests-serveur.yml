@@ -8,21 +8,19 @@ jobs:
     timeout-minutes: 30
     steps:
       - uses: actions/checkout@v4
-      - uses: supabase/setup-cli@v1
-        with: { version: latest }
       - uses: actions/setup-node@v4
         with: { node-version: 22 }
       - name: Démarrer Supabase en local (toutes les migrations appliquées)
         working-directory: serveur
         run: |
-          [ -f supabase/config.toml ] || supabase init --force
+          [ -f supabase/config.toml ] || npx -y supabase@2 init --force
           # Double authentification TOTP (activée par défaut sur les projets Supabase hébergés)
           for CFG in $(find supabase -maxdepth 1 -name 'config.*'); do
             perl -0pi -e 's/(totp\W*\{[^}]*?)enroll_enabled(\W*)false/$1enroll_enabled$2true/s; s/(totp\W*\{[^}]*?)verify_enabled(\W*)false/$1verify_enabled$2true/s; s/(totp\W*\{[^}]*?)enrollEnabled(\W*)false/$1enrollEnabled$2true/s; s/(totp\W*\{[^}]*?)verifyEnabled(\W*)false/$1verifyEnabled$2true/s' "$CFG"
             echo "configuration : $CFG"; grep -n -i -A4 'totp' "$CFG" | head -12
           done
-          supabase start -x studio,imgproxy,vector,logflare,supavisor,postgres-meta,mailpit
-          supabase status -o env > ../tests/.sb.env
+          npx -y supabase@2 start -x studio,imgproxy,vector,logflare,supavisor,postgres-meta,mailpit
+          npx -y supabase@2 status -o env > ../tests/.sb.env
       - name: Démarrer le serveur Stripe simulé et les fonctions serveur
         run: |
           NET=$(docker network ls --format '{{.Name}}' | grep supabase_network | head -1)
@@ -37,7 +35,7 @@ jobs:
           TAX_ALLOW_CURRENT_YEAR=1
           EOT
           sed -i 's/^ *//' tests/.env.functions
-          cd serveur && (supabase functions serve --env-file ../tests/.env.functions --no-verify-jwt > ../tests/functions.log 2>&1 &)
+          cd serveur && (npx -y supabase@2 functions serve --env-file ../tests/.env.functions --no-verify-jwt > ../tests/functions.log 2>&1 &)
           for i in $(seq 1 60); do curl -s -o /dev/null -w '%{http_code}' -X POST http://127.0.0.1:54321/functions/v1/sweeper | grep -q 403 && break; sleep 3; done
       - name: Lancer les tests
         working-directory: tests
