@@ -1496,7 +1496,7 @@ function extClick(a,el,id,v,b,me){switch(a){
   case'map-city':S.filters.city=S.filters.city===v?'':v;break;
   case'home-cat':S.filters.cat=v;S.filters.city=S.home.city;S.tab='explore';scrollTo(0,0);break;
   case'home-more':S.filters.city=S.home.city;S.filters.date=S.home.date;S.tab='explore';scrollTo(0,0);break;
-  case'pick-day':{const c=comp(id),sl=slots(c,v,2);if(sl.length)open('book',{cid:id,start:sl[0],hours:2});break}
+  case'pick-day':{const c=comp(id),hh=prefDur(),sl=slots(c,v,hh);if(sl.length)open('book',{cid:id,start:sl[0],hours:hh});else toast(`${c.name} n'est pas libre ${DUR_TXT[hh]||hh+' heures'} d'affilée ce jour-là.`,true);break}
   case'as-slot':{const[t,d,cat]=v.split('|');open('book',{cid:id,start:+t,hours:+d,cat});break}
   case'rebook':open('book',{cid:b.companionId,cat:b.cat,hours:b.hours});break;
   case'support':open('support',{id});break;
@@ -3051,12 +3051,12 @@ function parseAsk2(t){const r=parseAsk(t),s=t.toLowerCase().normalize('NFD').rep
   else if(sl)date=mk(sl[3]?(+sl[3]<100?2000+ +sl[3]:+sl[3]):n.getFullYear(),+sl[2]-1,+sl[1]);
   else if(le){let x=new Date(n.getFullYear(),n.getMonth(),+le[1],12);if(x.getTime()<now())x=new Date(n.getFullYear(),n.getMonth()+1,+le[1],12);date=dayKey(x)}
   else if(!r.dateGuess)date=r.date;else date=q.date;
-  r.date=date;r.dateGuess=false;
+  r.date=date;r.dateGuess=false;if(r.durGuess)r.dur=+q.dur||prefDur();
   // Ville : celle écrite (« à Rouen », « à New York ») ou celle de la recherche
   const ci=t.match(/\b(?:à|a|sur|dans|vers)\s+([A-ZÀ-Ý][\p{L}'’-]+(?:\s+[A-ZÀ-Ý][\p{L}'’-]+)?)/u);const known=S.companions.map(c=>c.city).find(cn=>s.includes(normCity(cn)));
   r.city=ci?cityTitle(ci[1]):known||q.city;
   r.time=r.at!=null?`${String(r.at).padStart(2,'0')}:00`:null;return r}
-function runAssist2(text){const r=parseAsk2(text),q=hsDefaults(),cnt=S.companions.filter(c=>sameCity(c.city,r.city)).map(c=>compCountry(c));const country=cnt[0]||q.country;
+function runAssist2(text){const r=parseAsk2(text);if(!r.durGuess)S.lastDur=r.dur;const _r=r,q=hsDefaults(),cnt=S.companions.filter(c=>sameCity(c.city,r.city)).map(c=>compCountry(c));const country=cnt[0]||q.country;
   const base={city:r.city,country,date:r.date,dur:r.dur,cat:r.act||''};let R;
   if(r.time)R=searchRun({...base,time:r.time});
   else{const per=r.per||[8,22];let best=null;for(let h=per[0];h<per[1]&&h<=21;h++){const x=searchRun({...base,time:`${String(h).padStart(2,'0')}:00`});if(x.items.length){best=x;break}if(!best)best=x}R=best||searchRun({...base,time:'14:00'})}
@@ -3069,6 +3069,8 @@ function assistHtml2(o){const {r,R}=o,q=R.q;
     <p class="xs muted">Vous pourrez vérifier tous les détails avant d'envoyer votre demande.</p></div>`;
   return `<div class="stack"><p class="sm">${summary} : ${esc(R.msg.charAt(0).toLowerCase()+R.msg.slice(1))}</p>${R.sameDay.length?`<p class="sm">Je peux vous proposer d'autres horaires ce jour-là :</p><div class="row">${R.sameDay.slice(0,4).map(x=>`<button class="btn xs slot" data-a="hs-book" data-id="${x.c.id}" data-v="${x.t}|${q.dur}|${x.c.cats[0]}">${esc(x.c.name)} · ${fhour(x.t)}</button>`).join('')}</div>`:''}
     <div class="row"><button class="btn xs" data-a="hs-edit">Modifier ma recherche</button><button class="btn xs pri" data-a="req-new">Publier ma demande</button></div></div>`}
+
+const prefDur=()=>Math.min(S.settings.maxH,Math.max(S.settings.minH,+S.lastDur||2));
 
 /* ---------- 12. Mon compte : un menu clair, une rubrique par écran, sans doublons ---------- */
 const ACC_ICO={profil:'<circle cx="12" cy="8" r="4"/><path d="M4 21a8 8 0 0 1 16 0"/>',identite:'<rect x="3" y="5" width="18" height="14" rx="2"/><circle cx="9" cy="11" r="2.5"/><path d="M14 10h4M14 14h4M6 16c.8-1.5 5.2-1.5 6 0"/>',
@@ -3160,6 +3162,7 @@ function v29Click(a,el,id,v,b){switch(a){
   case'bio-pwd':S.bioLock=false;S.bioOk=true;try{localStorage.removeItem('sbs-bio')}catch(e){}if(LIVE)SB.auth.signOut();S.liveAuth={mode:'login'};return true;
   case'logout':S.accSub=null;return false;
   case'flash-off':S.bookFlash=false;return true;
+  case'pick-day':{const c=comp(id),h=prefDur(),sl=slots(c,v,h);if(sl.length)open('book',{cid:id,start:sl[0],hours:h});else toast(`${c.name} n'est pas libre ${DUR_TXT[h]||h+' heures'} d'affilée ce jour-là.`,true);return true}
   default:return false}}
 function v29Submit(k,f,d){const fd=new FormData(f),err=(id,m)=>{const p=document.getElementById(id);if(p){p.textContent=tr(m);p.hidden=false}return 'stop'};
   if(k==='su3')return su3Submit(f);
@@ -3174,7 +3177,7 @@ function v29Submit(k,f,d){const fd=new FormData(f),err=(id,m)=>{const p=document
     liveCall('complete-profile',{role:d.role,first_name:d.first.trim(),last_name:d.last.trim(),birth_date:d.dob,country:d.country,city:cityTitle(d.city),phone:phoneE164(d.dial,d.tel),lang:S.lang,time_zone:ctry(d.country)[3],terms:true,privacy:true,charter:true,adult:true,non_circumvention:!!d.nc})
       .then(()=>{S.cp=null;S.liveAuth={mode:'login'};toast('Inscription terminée. Bienvenue sur Side by Side !');liveLoad()}).catch(e=>err('cp-err',e.message));return 'stop'}
   if(k==='hsearch2'){const city=String(d.city||'').trim();if(!city)return err('hs-err','Indiquez la ville de votre sortie.');if(!d.date)return err('hs-err','Choisissez la date de votre sortie.');
-    S.hs={city:cityTitle(city),country:d.country||'FR',date:d.date,time:d.time,dur:+d.dur,cat:d.cat||'',done:true};S.hsEdit=false;S.home.city=S.hs.city;S.home.date=d.date;
+    S.hs={city:cityTitle(city),country:d.country||'FR',date:d.date,time:d.time,dur:+d.dur,cat:d.cat||'',done:true};S.lastDur=+d.dur;S.hsEdit=false;S.home.city=S.hs.city;S.home.date=d.date;
     setTimeout(()=>{const r=document.getElementById('hs-res');r&&r.scrollIntoView({block:'start',behavior:'smooth'})},60);return true}
   if(k==='req-new'){const city=String(d.city||'').trim();if(!city)return err('rq-err','Indiquez la ville.');const ts=zonedTs(d.date,d.time,ctry(d.country)[3]);if(!d.date||ts<now()+24*H)return err('rq-err','Choisissez une date au moins 24 h à l\'avance.');
     const r={city:cityTitle(city),country:d.country,start:ts,hours:+d.dur,cat:d.cat,note:String(d.note||'').trim().slice(0,500)};
@@ -3199,7 +3202,7 @@ function v29Submit(k,f,d){const fd=new FormData(f),err=(id,m)=>{const p=document
   if(k==='acc-notifs'){const u=S.users.u1,em=fd.getAll('em');u.notif=fd.getAll('nt');u.emailPrefs={resa:em.includes('resa'),msg:em.includes('msg'),rappel:em.includes('rappel'),news:em.includes('news'),app:u.notif};
     if(LIVE){ME.email_prefs=u.emailPrefs;SB.from('profiles').update({email_prefs:u.emailPrefs}).eq('id',ME.id).then(({error})=>tr_(error?'Enregistrement impossible.':'Préférences de notification enregistrées.',!!error))}else toast('Préférences de notification enregistrées.');return true}
   return false}
-function v29Change(el){const f=el.form;if(!f)return false;
+function v29Change(el){if(el.dataset&&el.dataset.f==='dur'||el.id==='b-h'||el.id==='hs-dur')S.lastDur=+el.value;const f=el.form;if(!f)return false;
   if(f.dataset.form==='su3'){su3Capture(f);if(['type','dial','country'].includes(el.name)){if(el.name==='country')S.su.v.dial=el.value;render()}return true}
   if(f.dataset.form==='live-complete'){S.cp={...(S.cp||{}),...Object.fromEntries(new FormData(f))};if(el.name==='role'||el.name==='country'){if(el.name==='country')S.cp.dial=el.value;render()}return true}
   return false}
@@ -3213,6 +3216,8 @@ function liveOpenLoad(){if(!LIVE||!ME||ME.role!=='companion')return;SB.rpc('sear
 
 /* ---------- Initialisation ---------- */
 function v29Init(){if(window.__v29)return;window.__v29=1;
+  // La durée choisie par le client (accueil, filtres, assistant, fiche) est conservée jusqu'à la réservation
+  const _op=open;open=(t,d={})=>_op(t,t==='book'&&!d.hours?{...d,hours:prefDur()}:d);
   signupPage=signup3;runAssist=runAssist2;const _ah=assistHtml;assistHtml=o=>o&&o.v2?assistHtml2(o):_ah(o);
   const _ec=extChange;extChange=el=>v29Change(el)||_ec(el);
   EXTRA_SHEETS.reqnew=(s,h)=>reqSheet(s,h);
