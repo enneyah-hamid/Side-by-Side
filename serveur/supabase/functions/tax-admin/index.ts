@@ -15,6 +15,8 @@ async function sellers(year: number): Promise<Seller[]> {
   if (error) throw error;
   return (data ?? []).map((r: any) => ({ ...r, n: [r.n1, r.n2, r.n3, r.n4], gross: [r.g1, r.g2, r.g3, r.g4].map(Number), fees: [r.f1, r.f2, r.f3, r.f4].map(Number), tips: [r.t1, r.t2, r.t3, r.t4].map(Number) }));
 }
+// Comparaison indépendante de l'ordre des clés (la base réordonne les objets JSON)
+const canon = (v: any): string => Array.isArray(v) ? `[${v.map(canon).join(",")}]` : v && typeof v === "object" ? `{${Object.keys(v).sort().map((k) => `${JSON.stringify(k)}:${canon(v[k])}`).join(",")}}` : JSON.stringify(v);
 const totalOf = (s: Seller) => ({ missions: s.n.reduce((a, b) => a + b, 0), consideration: [0, 1, 2, 3].reduce((a, q) => a + consideration(s, q), 0), fees: [0, 1, 2, 3].reduce((a, q) => a + euros(s.fees[q]), 0) });
 const yearOk = (y: number) => Number.isInteger(y) && y >= 2023 && y <= new Date().getFullYear();
 // Année en cours : interdite en production (déclaration sur une année close) ; autorisée uniquement dans l'environnement de test
@@ -120,7 +122,7 @@ serve(async (req) => {
       for (const s of S) {
         const t = totalOf(s), data = { year, name: `${s.first_name} ${s.last_name}`, quarters: [0, 1, 2, 3].map((q) => ({ missions: s.n[q], consideration: consideration(s, q), fees: euros(s.fees[q]), taxes: 0 })), ...t };
         const { data: ex } = await admin.from("tax_certificates").select("version, data").eq("companion_id", s.companion_id).eq("year", year).order("version", { ascending: false }).limit(1);
-        if (ex?.length && JSON.stringify(ex[0].data) === JSON.stringify(data)) continue;            // déjà à jour : pas de doublon
+        if (ex?.length && canon(ex[0].data) === canon(data)) continue;            // déjà à jour : pas de doublon
         const { error } = await admin.from("tax_certificates").insert({ companion_id: s.companion_id, year, version: (ex?.[0]?.version ?? 0) + 1, declaration_id: d[0].id, data, published_at: body.publish ? now : null });
         if (!error) created++;
       }
