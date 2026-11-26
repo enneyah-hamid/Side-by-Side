@@ -462,7 +462,8 @@ async function confirmedBooking(client, comp, dayN, extra = {}) {
   // ---------- Assurance responsabilité civile ----------
   const comp3 = await user("ines@test.fr", { ...base, first_name: "Inès", role: "companion", non_circumvention: true }, { identity_verified: true });
   await svc.from("companions").update({ verified: true, video_interview_ok: true, categories: ["shopping"], hour_from: 0, hour_to: 24, stripe_account_id: "acct_test_ines", payouts_enabled: true }).eq("id", comp3.id);
-  const IB = (n) => call(client2, "create-booking", { companion_id: comp3.id, category: "shopping", starts_at: day(n), hours: 2, place: "Jardin du Luxembourg, Paris" });
+  const cY = await user("client-assurance@test.fr", { ...base, first_name: "Nora", role: "client" }, { identity_verified: true });
+  const IB = (n) => call(cY, "create-booking", { companion_id: comp3.id, category: "shopping", starts_at: day(n), hours: 2, place: "Jardin du Luxembourg, Paris" });
   r = await IB(5);
   check("Y01", "Accompagnateur sans assurance : nouvelle réservation refusée", r.status === 409 && /assurance/i.test(r.error ?? ""), r.error);
   const pdfBytes = new Blob([new TextEncoder().encode("%PDF-1.4 attestation test")], { type: "application/pdf" });
@@ -506,7 +507,7 @@ async function confirmedBooking(client, comp, dayN, extra = {}) {
   check("Y13", "Expiration : statut « expirée », accompagnateur prévenu, équipe informée des réservations affectées", exp.status === "expiree" && adminMsg.some((n) => n.body.includes(ok3.booking?.ref)), adminMsg.map((n) => n.body).join(" | "));
   r = await IB(8);
   const aff = await call(adm, "insurance", { action: "list", filter: "expirees" });
-  check("Y14", "Assurance expirée : nouvelle réservation refusée, réservation existante signalée", r.status === 409 && (aff.affected ?? []).some((b) => b.booking_id === ok3.booking?.id) && aff.rows.every((x) => x.state === "expiree"));
+  check("Y14", "Assurance expirée : nouvelle réservation refusée, réservation existante signalée", r.status === 409 && /assurance/i.test(r.error ?? "") && (aff.affected ?? []).some((b) => b.booking_id === ok3.booking?.id) && aff.rows.every((x) => x.state === "expiree"), `${r.status} ${r.error}`);
   r = await call(comp3, "account", { action: "export" });
   check("Y15", "Export RGPD : contrats d'assurance inclus", (r.insurances ?? []).length === 2);
 
