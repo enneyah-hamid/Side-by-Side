@@ -760,7 +760,7 @@ function seed(){
   seedV19();b5.tip=10;
   seedV20();
   seedV22();S.comfort=!!window.__comfort;
-  seedV23();seedFix();v26Init();v27Init();EXTRA_SHEETS['live-export']=(s,h)=>liveSheets(s,h);EXTRA_SHEETS['pv-delete']=(s,h)=>v26Sheets(s,h);
+  seedV23();seedFix();v26Init();v27Init();v28Init();EXTRA_SHEETS['live-export']=(s,h)=>liveSheets(s,h);EXTRA_SHEETS['pv-delete']=(s,h)=>v26Sheets(s,h);
 }
 function comp(id){return S.companions.find(c=>c.id===id)}
 function endOf(b){return b.start+(b.hours*60+b.extMins)*M}
@@ -1462,7 +1462,7 @@ function extClick(a,el,id,v,b,me){switch(a){
   case'quick':{const r=api.send(b,me,QR[+v]);if(r.err)toast(r.err,true);setTimeout(()=>{const m=document.getElementById('msgs');m&&(m.scrollTop=m.scrollHeight)});break}
   case'receipts':S.prefs.receipts=el.checked;break;
   case'csv-b':{const rows=[['reference','date','client','accompagnateur','ville','activite','duree_h','statut','total_eur','commission_eur']].concat(S.bookings.slice().sort((x,y)=>x.start-y.start).map(x=>[x.ref,new Date(x.start).toISOString(),S.users[x.clientId].name,comp(x.companionId).name,comp(x.companionId).city,catName(x.cat),(x.hours*60+x.extMins)/60,ST[x.status][0],x.total.toFixed(2),x.service.toFixed(2)]));open('text',{title:'Export des réservations',sub:'Format CSV, séparateur point-virgule.',text:rows.map(r=>r.join(';')).join('\n')});break}
-  default:return v13Click(a,el,id,v,b,me)||v14Click(a,el,id,v)||v15Click(a,el,id,v,b)||v16Click(a)||v17Click(a,el,id,v)||v18Click(a,el,id,v)||v19Click(a,el,id,v,b)||v20Click(a,el,id,v,b)||v22Click(a,el,id,v,b)||dac7Click(a,el)||v23Click(a)||v26Click(a,el,id,v,b)}
+  default:return v13Click(a,el,id,v,b,me)||v14Click(a,el,id,v)||v15Click(a,el,id,v,b)||v16Click(a)||v17Click(a,el,id,v)||v18Click(a,el,id,v)||v19Click(a,el,id,v,b)||v20Click(a,el,id,v,b)||v22Click(a,el,id,v,b)||v28Click(a,el,id,v,b)||dac7Click(a,el)||v23Click(a)||v26Click(a,el,id,v,b)}
   return true}
 function extChange(el){
   if(el.id==='tax-year'){S.taxYear=+el.value;render();return true}
@@ -1490,6 +1490,7 @@ function extSubmit(k,f,fd,d,b,me){
   if(k==='adm-reset-sms'||k==='adm-reset-new')return admResetSubmit(k,d);
   if(k==='adm-setup'){const e=m=>{const p=document.getElementById('as-err');p.textContent=tr(m);p.hidden=false;return 'stop'};if(adminHash())return true;const pe=pwRuleErr(d.nw,d.nw2);if(pe)return e(pe);
     sha256(String(d.nw)).then(h=>{try{localStorage.setItem(ADM_KEY,h)}catch(x){e('Impossible d\'enregistrer le mot de passe sur cet appareil.');return}S.adminOk=true;S.mfaTries=0;log('Administrateur Side by Side','Mot de passe administrateur créé','—');toast('Mot de passe enregistré.');render()});return 'stop'}
+  {const r11=v28Submit(k,f,d);if(r11)return r11}
   {const r10=dac7Submit(k,f,d);if(r10)return r10}
   {const r9=v26Submit(k,f,d);if(r9)return r9}
   {const r8=v23Submit(k,f,d);if(r8)return r8}
@@ -2533,6 +2534,256 @@ function v27Init(){if(window.__v27)return;window.__v27=1;
   if(LIVE){const _l=liveLoad;liveLoad=async(...x)=>{const r=await _l(...x);liveTaxLoad();return r};
     const _d=lAdmDash;aDash=lAdmDash=(...x)=>_d(...x)+`<section class="section"><button class="btn full" data-a="dac7">Fiscalité et déclarations DAC7</button></section>`;
     const _sub=v23Submit;v23Submit=(k,f,d)=>{const r=_sub(k,f,d);if(k==='taxinfo'&&r&&r!=='stop'){const t=comp('c1').tax||{};SB.from('companions').update({tax_id:(t.id||'').replace(/\s/g,'')||null,postal_address:t.addr||null}).eq('id',ME.id).then(({error})=>{if(error)tr_('Enregistrement impossible.',true)})}return r}}}
+
+/* ================= V2.8 — Assurance responsabilité civile des accompagnateurs ; compléments fiscaux DAC7 ================= */
+// Side by Side n'est pas un assureur : chaque accompagnateur souscrit son propre contrat, la plateforme vérifie l'attestation.
+const INS_ST={valide:['Validée','t-ok'],expire_bientot:['Expire bientôt','t-warn'],en_attente:['En attente de validation','t-info'],refusee:['Refusée','t-bad'],expiree:['Expirée','t-bad'],aucune:['Aucune attestation','t-warn']};
+const INS_DEC={depot:'Dépôt',validee:'Validation',refusee:'Refus',expiree:'Expiration',consultation:'Consultation du justificatif'};
+const isoDay=t=>new Date(t).toLocaleDateString('en-CA',{timeZone:'Europe/Paris'});
+const frDay=s=>s?String(s).slice(0,10).split('-').reverse().join('/'):'';
+const insPill=st=>`<span class="pill ${(INS_ST[st]||['',''])[1]}">${(INS_ST[st]||[st])[0]}</span>`;
+function insState(i,t){const d=isoDay(t||now());if(i.status==='validee'){if(i.end<d)return'expiree';return (Date.parse(i.end)-Date.parse(d))/DAY<=30?'expire_bientot':'valide'}return i.status}
+function insList(cid){if(LIVE&&cid==='c1')return S.liveIns||[];const c=comp(cid);return (c&&c.ins)||[]}
+// Réservable : attestation validée couvrant toute la prestation (sauf si la direction a désactivé l'obligation)
+function insOk(cid,start,hours){if(S.insRequired===false)return true;const a=isoDay(start),z=isoDay(start+(hours||1)*H);return insList(cid).some(i=>i.status==='validee'&&i.start<=a&&i.end>=z)}
+function insCurrent(cid){const L=insList(cid).slice().sort((a,b)=>b.created-a.created),d=isoDay(now());
+  const ok=L.filter(i=>i.status==='validee'&&i.end>=d).sort((a,b)=>b.end.localeCompare(a.end))[0];return{ok,last:L[0],L}}
+
+/* ---------- Espace accompagnateur : « Mon assurance » ---------- */
+function insCard(){const {ok,last,L}=insCurrent('c1'),st=ok?insState(ok):last?insState(last):'aucune',d=isoDay(now());
+  return `<section class="section"><form class="card stack" data-form="ins-up"><div class="row"><span class="lbl grow">Mon assurance</span>${insPill(st)}</div>
+  <p class="xs muted">Chaque accompagnateur souscrit, à ses frais, une assurance responsabilité civile couvrant son activité rémunérée d'accompagnement. Side by Side n'est pas un assureur et ne fournit aucune garantie : la plateforme vérifie uniquement votre attestation.</p>
+  ${ok?`<div class="note ${st==='expire_bientot'?'t-warn':'t-ok'} sm">${esc(ok.insurer)} · contrat n° ${esc(ok.policy)} · valable du ${frDay(ok.start)} au ${frDay(ok.end)}${st==='expire_bientot'?' — pensez à déposer votre nouvelle attestation':''}</div>`:'<div class="note t-warn sm">Sans attestation validée et en cours de validité, vous ne pouvez pas recevoir de nouvelles réservations.</div>'}
+  ${last&&last.status==='refusee'?`<div class="note t-bad sm">Dernière attestation refusée : ${esc(last.reason||'motif non précisé')}</div>`:''}
+  ${last&&last.status==='en_attente'?'<p class="xs t-info">Attestation en cours de vérification par l\'équipe Side by Side.</p>':''}
+  <div class="field"><label for="in-co">Compagnie d'assurance</label><input id="in-co" name="insurer" maxlength="100" autocomplete="organization"></div>
+  <div class="field"><label for="in-no">Numéro du contrat</label><input id="in-no" name="policy" maxlength="50" autocomplete="off"></div>
+  <div class="row"><div class="field grow"><label for="in-s">Début de validité</label><input id="in-s" name="start" type="date"></div><div class="field grow"><label for="in-e">Date d'expiration</label><input id="in-e" name="end" type="date" min="${d}"></div></div>
+  <div class="field"><label for="in-f">Attestation d'assurance (PDF, JPG ou PNG, 10 Mo maximum)</label><input id="in-f" name="doc" type="file" accept="application/pdf,image/jpeg,image/png"></div>
+  <label class="row sm"><input type="checkbox" name="covers" value="1"> Je confirme que mes garanties couvrent les prestations rémunérées d'accompagnement réalisées par l'intermédiaire de Side by Side.</label>
+  <p class="xs muted">Rappels automatiques 30, 15, 7 et 1 jour avant l'expiration. Document conservé dans un espace privé, consultable uniquement par vous et les administrateurs habilités.</p>
+  <p class="note t-bad sm" id="ins-err" hidden></p><button class="btn pri">${ok?'Déposer une nouvelle attestation':'Transmettre pour vérification'}</button>
+  ${L.length?`<details><summary class="sm">Historique de mes attestations</summary>${L.map(i=>`<div class="row xs"><span class="grow">${esc(i.insurer)} · ${frDay(i.start)} → ${frDay(i.end)} · déposée le ${fshort(i.created)}${i.status==='refusee'&&i.reason?` · ${esc(i.reason)}`:''}</span>${insPill(insState(i))}</div>`).join('')}</details>`:''}
+  </form></section>`}
+
+/* ---------- Espace administrateur : « Gestion des assurances » ---------- */
+function insData(){
+  if(LIVE)return S.liveInsAdm||null;
+  const rows=[];S.companions.forEach(c=>(c.ins||[]).forEach(i=>rows.push({...i,cid:c.id,name:c.name,state:insState(i)})));
+  const insured=new Set(rows.filter(r=>['valide','expire_bientot'].includes(r.state)).map(r=>r.cid));
+  const uninsured=S.companions.filter(c=>c.verified==='ok'&&!insured.has(c.id)).map(c=>({cid:c.id,name:c.name}));
+  const affected=S.bookings.filter(b=>['en_attente','acceptee','paiement_confirme','confirmee','controle'].includes(b.status)&&b.start>now()&&!insOk(b.companionId,b.start,b.hours)).map(b=>({id:b.id,ref:b.ref,name:(comp(b.companionId)||{}).name,start:b.start}));
+  const st=rows.map(r=>r.state);
+  return{rows,uninsured,affected,history:S.insHist||[],required:S.insRequired!==false,demo:true,
+    counts:{assures:insured.size,attente:st.filter(s=>s==='en_attente').length,bientot:st.filter(s=>s==='expire_bientot').length,expirees:st.filter(s=>s==='expiree').length,sans:uninsured.length}}}
+function insLoad(){if(!LIVE)return;liveCall('insurance',{action:'list'}).then(r=>{
+  S.liveInsAdm={...r,rows:(r.rows||[]).map(i=>({id:i.id,cid:i.companion_id,name:i.name,insurer:i.insurer,policy:i.policy_number,start:i.starts_on,end:i.ends_on,status:i.status,reason:i.refusal_reason,created:Date.parse(i.created_at),state:i.state})),
+    uninsured:(r.uninsured||[]).map(u=>({cid:u.companion_id,name:u.name})),affected:(r.affected||[]).map(b=>({id:b.booking_id,ref:b.ref,name:b.companion_name,start:Date.parse(b.starts_at)})),
+    history:(r.history||[]).map(h=>({insId:h.insurance_id,decision:h.decision,reason:h.reason,t:Date.parse(h.created_at)}))};render()}).catch(e=>tr_(e.message,true))}
+const INS_F=[['tous','Toutes les attestations'],['attente','En attente de validation'],['assures','Accompagnateurs assurés'],['bientot','Expirent sous 30 jours'],['expirees','Expirées'],['refusees','Refusées']];
+function insSheet(s,head){const D=insData(),top=head('Gestion des assurances','Attestations de responsabilité civile des accompagnateurs');
+  if(!D)return top+'<p class="muted">Chargement…</p>';
+  const q=(S.insQ||'').toLowerCase(),f=S.insF||'tous',match={tous:()=>true,attente:r=>r.state==='en_attente',assures:r=>['valide','expire_bientot'].includes(r.state),bientot:r=>r.state==='expire_bientot',expirees:r=>r.state==='expiree',refusees:r=>r.state==='refusee'}[f]||(()=>true);
+  const rows=D.rows.filter(match).filter(r=>!q||`${r.name} ${r.insurer} ${r.policy}`.toLowerCase().includes(q)).sort((a,b)=>(a.state==='en_attente'?0:1)-(b.state==='en_attente'?0:1)||b.created-a.created);
+  const K=(l,v)=>`<div class="card kpi"><span class="lbl">${l}</span><span class="num">${v}</span></div>`,byId=id=>D.rows.find(r=>r.id===id);
+  return top+`${D.demo?'<div class="note t-warn sm">Démonstration : attestations fictives.</div>':''}
+  <p class="xs muted">Side by Side ne finance pas d'assurance collective et n'est pas assureur : chaque accompagnateur souscrit son propre contrat. L'équipe vérifie l'attestation ; sans attestation validée et en cours de validité, les nouvelles réservations sont bloquées automatiquement, puis réactivées dès la validation d'une nouvelle attestation.</p>
+  <div class="kpis">${K('Accompagnateurs assurés',D.counts.assures)}${K('En attente de validation',D.counts.attente)}${K('Expirent sous 30 jours',D.counts.bientot)}${K('Attestations expirées',D.counts.expirees)}${K('Sans assurance valide',D.counts.sans)}</div>
+  <div class="row sm"><span class="grow">Assurance obligatoire pour être réservé : <b>${D.required?'activée':'désactivée'}</b></span><button class="btn ghost" data-a="ins-required">${D.required?'Désactiver':'Activer'}</button></div>
+  <form class="row" data-form="ins-search"><input name="q" aria-label="Rechercher" placeholder="Nom, compagnie, n° de contrat" value="${esc(S.insQ||'')}" class="grow"><select name="f" aria-label="Filtre">${INS_F.map(([k,l])=>`<option value="${k}" ${k===f?'selected':''}>${l}</option>`).join('')}</select><button class="btn">Rechercher</button></form>
+  <span class="lbl">${(INS_F.find(x=>x[0]===f)||INS_F[0])[1]} (${rows.length})</span>
+  ${rows.map(r=>`<div class="card stack"><div class="row"><b class="grow">${esc(r.name)}</b>${insPill(r.state)}</div>
+    <div class="xs muted">${esc(r.insurer)} · contrat n° ${esc(r.policy)} · du ${frDay(r.start)} au ${frDay(r.end)} · déposée le ${fshort(r.created)}${r.reason?` · motif : ${esc(r.reason)}`:''}</div>
+    <div class="row"><button class="btn ghost" data-a="ins-doc" data-id="${r.id}">Consulter le justificatif</button>${r.state==='en_attente'?`<button class="btn pri" data-a="ins-ok" data-id="${r.id}">Valider</button>`:''}</div>
+    ${r.state==='en_attente'?`<form class="row" data-form="ins-refuse" data-id="${r.id}"><input name="reason" class="grow" maxlength="500" aria-label="Motif du refus" placeholder="Motif du refus (obligatoire)"><button class="btn bad">Refuser</button></form>`:''}</div>`).join('')||'<p class="xs muted">Aucune attestation pour ce filtre.</p>'}
+  <span class="lbl">Réservations à venir non couvertes (${D.affected.length})</span>
+  ${D.affected.map(b=>`<div class="row sm"><span class="grow">${esc(b.ref)} · ${esc(b.name||'')} · ${fshort(b.start)}</span><span class="pill t-warn">À examiner</span></div>`).join('')||'<p class="xs muted">Aucune réservation existante affectée.</p>'}
+  <span class="lbl">Accompagnateurs sans assurance valide (${D.uninsured.length})</span>
+  <p class="xs">${D.uninsured.map(u=>esc(u.name)).join(' · ')||'<span class="muted">Aucun.</span>'}</p>
+  <details><summary class="sm"><b>Historique des vérifications</b></summary>${D.history.slice(0,60).map(h=>{const r=byId(h.insId);return `<div class="xs row"><span class="grow">${fshort(h.t)} · ${INS_DEC[h.decision]||h.decision}${r?` · ${esc(r.name)} (${esc(r.insurer)})`:''}${h.reason?` · ${esc(h.reason)}`:''}</span></div>`}).join('')||'<p class="xs muted">Aucune vérification.</p>'}</details>
+  <p class="xs muted">Chaque consultation, validation et refus est journalisé. Justificatifs conservés dans un espace privé, accessibles uniquement aux administrateurs avec double authentification.</p>`}
+
+/* ---------- Fiscalité : informations selon le statut et ventilation des montants ---------- */
+const luhnOk=v=>/^\d+$/.test(v)&&[...v].reverse().reduce((a,c,i)=>{let d=+c;if(i%2){d*=2;if(d>9)d-=9}return a+d},0)%10===0;
+const EU27=['AT','BE','BG','CY','CZ','DE','DK','EE','ES','FI','FR','GR','HR','HU','IE','IT','LT','LU','LV','MT','NL','PL','PT','RO','SE','SI','SK'];
+// Mêmes règles que le serveur (fonction tax_profile_issues) : informations manquantes ou incorrectes
+function taxIssues(c){const t=c.tax||{},a=c.adm||{},legal=a.legal||t.legal||'',nif=(t.nif||'').replace(/\s/g,''),siret=(a.siret||t.id||'').replace(/\s/g,''),vat=t.vat||'',out=[],add=(field,message,blocking=true)=>out.push({field,message,blocking});
+  if(!legal)add('statut','Statut à indiquer : particulier, micro-entrepreneur ou société (Profil → Informations administratives)');
+  if(!/\d{5}/.test(t.addr||''))add('adresse','Adresse postale manquante ou incomplète (rue, code postal, ville)');
+  if(legal!=='societe'){if(!t.dob)add('naissance','Date de naissance manquante');if(!t.birthCity)add('lieu de naissance','Ville de naissance manquante');
+    if(!nif)add('NIF','Numéro fiscal manquant (il figure sur votre avis d\'impôt)',false);else if((t.country||'FR')==='FR'&&!/^[0-3]\d{12}$/.test(nif))add('NIF','Numéro fiscal incorrect : 13 chiffres commençant par 0, 1, 2 ou 3')}
+  if(legal==='micro'||legal==='societe'){if(!/^\d{14}$/.test(siret))add('SIRET','Numéro SIRET manquant ou incorrect (14 chiffres)');else if(!luhnOk(siret))add('SIRET','Numéro SIRET à vérifier (clé de contrôle invalide)',false)}
+  if(legal==='societe'&&!t.business)add('raison sociale','Raison sociale de la société manquante');
+  if(vat.startsWith('FR')&&!/^FR[0-9A-Z]{2}\d{9}$/.test(vat))add('TVA','Numéro de TVA intracommunautaire incorrect (FR + 2 caractères + SIREN)');
+  if(!EU27.includes(t.country||'FR'))add('résidence','Résidence fiscale hors Union européenne : situation à vérifier',false);return out}
+// Ventilation par accompagnateur : payé par le client, frais client, commission, net versé, remboursements, annulations, taxes
+function demoBreakdown(y){return S.companions.map(c=>{const o={companion_id:c.id,name:c.name,missions:0,client_paid:0,client_fees:0,client_vat:0,gross:0,commission:0,annex:0,tips:0,net_paid:0,declarable:0,cancelled:0,refunds:0,taxes:0},mine=S.bookings.filter(b=>b.companionId===c.id);
+  mine.filter(b=>b.status==='cloturee'&&payoutDone(b)&&new Date(stepT(b,'cloturee')||endOf(b)).getFullYear()===y).forEach(b=>{const g=b.prest+(b.extensions||[]).reduce((s,e)=>s+(e.prest||0),0),tip=b.tip||0;
+    o.missions++;o.client_paid+=(b.total||0)+tip;o.client_fees+=b.service||0;o.client_vat+=b.tva||0;o.gross+=g;o.commission+=b.comm||0;o.annex+=b.annex||0;o.tips+=tip;o.net_paid+=(b.payout||0)+tip;o.declarable+=g-(b.comm||0)+tip});
+  const refs=new Set(mine.map(b=>b.ref));o.refunds=-S.ledger.filter(l=>String(l.type).startsWith('Remboursement')&&refs.has(l.ref)&&new Date(l.t).getFullYear()===y).reduce((a,l)=>a+l.amount,0);
+  o.cancelled=mine.filter(b=>b.status==='annulee'&&new Date(b.start).getFullYear()===y).length;return o}).filter(o=>o.missions||o.refunds||o.cancelled)}
+function myBreakdownHtml(y){const B=LIVE?(S.liveMyBd&&S.liveMyBd.year===y?S.liveMyBd.row:null):demoBreakdown(y).find(x=>x.companion_id==='c1');const b=B||{missions:0,gross:0,commission:0,annex:0,tips:0,net_paid:0,declarable:0,cancelled:0,taxes:0};
+  const R=(l,v,x='')=>`<div class="row sm"><span class="grow">${l}</span><span class="num ${x}">${v}</span></div>`;
+  return `<details class="card"><summary class="sm"><b>Détail des montants ${y}</b></summary>
+  ${R('Montant brut des prestations',eur(+b.gross))}${R('Commission Side by Side retenue',eur(-b.commission))}${R('Pourboires reçus',eur(+b.tips))}${R('Montant net versé pour vos prestations',eur(+b.declarable),'t-ok')}${R('Frais annexes remboursés (non imposables, non déclarés)',eur(+b.annex))}${R('Réservations annulées dans l\'année',b.cancelled||0)}${R('Taxes prélevées par Side by Side',eur(+b.taxes||0))}
+  <p class="xs muted">Montant déclaré à l'administration fiscale : le net versé pour vos prestations, rattaché à la date de chaque versement. Les frais de service payés par les clients ne font pas partie de vos revenus. En cas de remboursement partiel du client après un litige, seul le montant réellement versé est retenu.</p></details>`}
+function taxStatusCard(){const c=comp('c1');if(!c)return'';const t=c.tax||{},legal=(c.adm&&c.adm.legal)||t.legal||'',I=LIVE&&S.liveIssues?S.liveIssues:taxIssues(c),bl=I.filter(i=>i.blocking);
+  const L={particulier:'Particulier (activité occasionnelle)',micro:'Micro-entrepreneur',societe:'Société'}[legal];
+  return `<section class="section"><form class="card stack" data-form="taxinfo3"><div class="row"><span class="lbl grow">Contrôle de mes informations fiscales</span>${bl.length?`<span class="pill t-warn">${bl.length} à compléter</span>`:'<span class="pill t-ok">Complètes</span>'}</div>
+  <p class="xs">Statut : <b>${L||'non indiqué'}</b> <span class="muted">(modifiable dans Profil → Informations administratives)</span></p>
+  ${I.length?I.map(i=>`<div class="xs ${i.blocking?'t-bad':'t-warn'}">• ${esc(i.message)}</div>`).join(''):'<p class="xs t-ok">Toutes les informations exigées pour votre statut sont renseignées.</p>'}
+  <p class="xs muted">Particulier et micro-entrepreneur : identité, date et lieu de naissance, adresse, numéro fiscal${legal==='micro'?', SIRET':''}. Société : raison sociale, SIRET, adresse du siège, numéro de TVA s'il existe.</p>
+  ${legal==='societe'?`<div class="field"><label for="t3-bn">Raison sociale</label><input id="t3-bn" name="business" maxlength="120" value="${esc(t.business||'')}"></div>`:''}
+  ${legal==='micro'||legal==='societe'?`<div class="field"><label for="t3-vat">Numéro de TVA intracommunautaire (s'il existe)</label><input id="t3-vat" name="vat" maxlength="15" value="${esc(t.vat||'')}" placeholder="FR00123456789" autocomplete="off" style="text-transform:uppercase"></div><p class="note t-bad sm" id="t3-err" hidden></p><button class="btn">Enregistrer</button>`:''}
+  </form></section>`}
+
+/* ---------- Déclarations DAC7 : statuts, documents officiels, téléchargement groupé ---------- */
+const STAGE={a_preparer:['À préparer','t-info'],incomplet:['Incomplet','t-warn'],pret:['Prêt','t-info'],transmis:['Transmis','t-ok'],accepte:['Accepté','t-ok'],rejete:['Rejeté','t-bad'],a_corriger:['À corriger','t-warn']};
+const STAGE_TXT={a_preparer:'Aucune déclaration préparée pour cette année.',incomplet:'Des informations obligatoires manquent : vérifiez-les avant de générer la déclaration.',pret:'Déclaration prête : validez-la, puis transmettez-la sur impots.gouv.fr.',transmis:'Déclaration transmise : en attente du compte rendu officiel de l\'administration fiscale.',accepte:'Acceptation confirmée par un document officiel importé.',rejete:'Déclaration rejetée par l\'administration : générez et transmettez un nouveau fichier.',a_corriger:'Erreurs signalées par l\'administration : générez une déclaration corrective.'};
+const OFF={recu:'Accusé de réception (dépôt reçu)',accepte:'Acceptée',accepte_avec_erreurs:'Acceptée avec erreurs à corriger',rejete:'Rejetée'};
+function stageOf(decls,blocking){const base=decls.filter(d=>!['annulee','brouillon'].includes(d.status)).pop(),draft=decls.some(d=>d.status==='brouillon');
+  if(!base)return blocking?'incomplet':draft?'pret':'a_preparer';return{validee:'pret',transmise:'transmis',acceptee:'accepte',rejetee:'rejete',a_corriger:'a_corriger'}[base.status]||'a_preparer'}
+function parseSM(xml){const all=n=>[...xml.matchAll(new RegExp(`<(?:\\w+:)?${n}>([^<]*)</(?:\\w+:)?${n}>`,'g'))].map(m=>m[1].trim());
+  const st=(all('Status')[0]||all('FileAcceptanceStatus')[0]||'').toLowerCase();
+  const errors=[...xml.matchAll(/<(?:\w+:)?RecordError>([\s\S]*?)<\/(?:\w+:)?RecordError>/g)].map(m=>({code:(m[1].match(/<(?:\w+:)?Code>([^<]*)</)||[])[1]||'',details:((m[1].match(/<(?:\w+:)?Details[^>]*>([^<]*)</)||[])[1]||'').slice(0,300),doc_ref_id:(m[1].match(/<(?:\w+:)?DocRefIDInError>([^<]*)</)||[])[1]||''}));
+  const rejected=/reject|rejet/.test(st)||/<(?:\w+:)?FileError>/.test(xml),accepted=/accept/.test(st);
+  return{original:all('OriginalMessageRefID')[0]||'',official:rejected?'rejete':accepted?(errors.length?'accepte_avec_erreurs':'accepte'):'recu',errors}}
+function dac7Extra(D,y){const decl=D.declarations||[],stage=D.stage||stageOf(decl,D.blocking>0),errs=decl.filter(d=>d.status==='a_corriger').flatMap(d=>(d.errors||[]).map(e=>({...e,ref:d.message_ref_id})));
+  const bd=D.breakdown||(D.demo?demoBreakdown(y):[]),tot=k=>bd.reduce((a,x)=>a+(+x[k]||0),0),rc=D.receipts||((S.demoRcpt||{})[y]||[]);
+  const target=decl.filter(d=>['validee','transmise','a_corriger'].includes(d.status));
+  return `<span class="lbl">Ventilation des montants ${y}</span>
+  <div class="tbl"><table class="t"><tr><th>Accompagnateur</th><th>Payé par le client</th><th>Frais client (TTC)</th><th>Commission</th><th>Net versé</th><th>Rembours.</th><th>Déclarable</th></tr>
+  ${bd.map(x=>`<tr><td>${esc(x.name)}${x.cancelled?` <span class="xs muted">· ${x.cancelled} annulation(s)</span>`:''}</td><td class="num">${eur(+x.client_paid)}</td><td class="num">${eur(+x.client_fees+ +x.client_vat)}</td><td class="num">${eur(+x.commission)}</td><td class="num">${eur(+x.net_paid)}</td><td class="num">${eur(+x.refunds)}</td><td class="num"><b>${eur(+x.declarable)}</b></td></tr>`).join('')||'<tr><td colspan="7" class="muted">Aucun mouvement sur l\'année.</td></tr>'}
+  ${bd.length?`<tr class="tot"><td><b>Total</b></td><td class="num"><b>${eur(tot('client_paid'))}</b></td><td class="num"><b>${eur(tot('client_fees')+tot('client_vat'))}</b></td><td class="num"><b>${eur(tot('commission'))}</b></td><td class="num"><b>${eur(tot('net_paid'))}</b></td><td class="num"><b>${eur(tot('refunds'))}</b></td><td class="num"><b>${eur(tot('declarable'))}</b></td></tr>`:''}</table></div>
+  <p class="xs muted">Taux appliqués à chaque réservation : frais de service client ${S.settings&&S.settings.clientFee||15} % (+ TVA), commission accompagnateur ${S.settings&&S.settings.compFee||20} %. Déclarable = prestations − commission + pourboires, après remboursement partiel éventuel (litige) ; frais annexes remboursés, frais client et TVA exclus. Net versé = virement réel à l'accompagnateur, frais annexes compris. Taxes prélevées par la plateforme : 0 €.</p>
+  ${errs.length?`<div class="card stack"><span class="lbl t-bad">Erreurs signalées par l'administration fiscale (${errs.length})</span>${errs.map(e=>`<div class="xs">${esc(e.code)} · ${esc(e.details||'')} <span class="muted">(${esc(e.doc_ref_id)})</span></div>`).join('')}<button class="btn pri" data-a="dac7-fix">Générer la déclaration corrective</button></div>`:''}
+  <form class="card stack" data-form="dac7-import"><span class="lbl">Importer un accusé de réception ou un compte rendu officiel</span>
+  ${target.length?`<div class="field"><label for="d7d">Déclaration concernée</label><select id="d7d" name="id">${target.map(d=>`<option value="${d.id}">v${d.version} · ${esc(d.message_ref_id)}</option>`).join('')}</select></div>
+  <div class="field"><label for="d7f">Document (XML de compte rendu DGFiP ou PDF, 5 Mo maximum)</label><input id="d7f" name="file" type="file" accept=".xml,.pdf,application/xml,text/xml,application/pdf"></div>
+  <div class="field"><label for="d7o">Statut indiqué sur le document (obligatoire pour un PDF ; lu automatiquement dans un XML)</label><select id="d7o" name="official"><option value="">Lire dans le document XML</option>${Object.entries(OFF).map(([k,l])=>`<option value="${k}">${l}</option>`).join('')}</select></div>
+  <div class="field"><label for="d7ref">Référence figurant sur le document</label><input id="d7ref" name="reference" autocomplete="off" maxlength="120"></div>
+  <p class="xs muted">Une déclaration n'est jamais considérée comme acceptée sans document officiel importé.</p><button class="btn">Importer le document</button>`:'<p class="xs muted">Disponible après la validation d\'une déclaration.</p>'}</form>
+  <button class="btn" data-a="dac7-zip" ${decl.some(d=>['validee','transmise','acceptee','a_corriger'].includes(d.status))?'':'disabled'}>Télécharger toutes les attestations (ZIP)</button>
+  <span class="lbl">Documents officiels reçus</span>${rc.length?rc.map(r=>`<div class="row sm"><span class="grow">${fshort(Date.parse(r.created_at)||r.t)} · ${esc(r.reference)} · ${esc(r.file_name||'')}</span><span class="pill ${{accepte:'t-ok',recu:'t-info',accepte_avec_erreurs:'t-warn',rejete:'t-bad'}[r.official_status]}">${OFF[r.official_status]}</span></div>`).join(''):'<p class="xs muted">Aucun document officiel importé.</p>'}`}
+function stageBanner(D,y){const st=D.stage||stageOf(D.declarations||[],D.blocking>0),p=STAGE[st];return `<div class="card row"><span class="grow sm">Déclaration ${y} : <b>${p[0]}</b><br><span class="xs muted">${STAGE_TXT[st]}</span></span><span class="pill ${p[1]}">${p[0]}</span></div>`}
+
+/* ---------- Téléchargement groupé : archive ZIP (sans compression) d'attestations PDF ---------- */
+const CRC=(()=>{const t=new Uint32Array(256);for(let n=0;n<256;n++){let c=n;for(let k=0;k<8;k++)c=c&1?0xEDB88320^(c>>>1):c>>>1;t[n]=c>>>0}return t})();
+const crc32=b=>{let c=0xFFFFFFFF;for(let i=0;i<b.length;i++)c=CRC[(c^b[i])&255]^(c>>>8);return(c^0xFFFFFFFF)>>>0};
+function makeZip(files){const enc=new TextEncoder(),parts=[],central=[];let off=0;
+  const dt=new Date(now()),dosT=(dt.getHours()<<11)|(dt.getMinutes()<<5)|(dt.getSeconds()>>1),dosD=((dt.getFullYear()-1980)<<9)|((dt.getMonth()+1)<<5)|dt.getDate();
+  for(const f of files){const name=enc.encode(f.name),data=f.bytes,crc=crc32(data),h=new DataView(new ArrayBuffer(30));
+    [[0,0x04034b50,4],[4,20,2],[6,0x0800,2],[8,0,2],[10,dosT,2],[12,dosD,2],[14,crc,4],[18,data.length,4],[22,data.length,4],[26,name.length,2],[28,0,2]].forEach(([o,v,s])=>s===4?h.setUint32(o,v,true):h.setUint16(o,v,true));
+    parts.push(new Uint8Array(h.buffer),name,data);const c=new DataView(new ArrayBuffer(46));
+    [[0,0x02014b50,4],[4,20,2],[6,20,2],[8,0x0800,2],[10,0,2],[12,dosT,2],[14,dosD,2],[16,crc,4],[20,data.length,4],[24,data.length,4],[28,name.length,2],[30,0,2],[32,0,2],[34,0,2],[36,0,2],[38,0,4],[42,off,4]].forEach(([o,v,s])=>s===4?c.setUint32(o,v,true):c.setUint16(o,v,true));
+    central.push(new Uint8Array(c.buffer),name);off+=30+name.length+data.length}
+  const csize=central.reduce((a,x)=>a+x.length,0),e=new DataView(new ArrayBuffer(22));
+  [[0,0x06054b50,4],[4,0,2],[6,0,2],[8,files.length,2],[10,files.length,2],[12,csize,4],[16,off,4],[20,0,2]].forEach(([o,v,s])=>s===4?e.setUint32(o,v,true):e.setUint16(o,v,true));
+  return new Blob([...parts,...central,new Uint8Array(e.buffer)],{type:'application/zip'})}
+function certBytes(year,c){const d=c.data||{},q=d.quarters||[],legal=c.legal_status,nm=legal==='societe'&&c.business_name?c.business_name:(d.name||c.name||'');
+  const lines=[`Attestation annuelle ${year}${c.version>1?` · version ${c.version}`:''}`,'',`Plateforme : Side by Side, éditée par ${LEGAL_CO.name} (${LEGAL_CO.form}), ${LEGAL_CO.addr}`,`Prestataire : ${nm}${legal==='societe'&&c.siret?` · SIRET ${c.siret}`:''}`,
+    `Numéro fiscal : ${c.nif||'non communiqué'} · résidence fiscale : ${c.tax_country||'FR'}`,`Adresse : ${c.postal_address||'non communiquée'}`,'','Activité : prestations de services personnels (accompagnement)','',
+    ...q.map((x,i)=>`Trimestre ${i+1} : ${x.missions} prestation(s) · revenus nets ${x.consideration} € · commissions et frais ${x.fees} € · taxes ${x.taxes||0} €`),'',
+    `Total ${year} : ${d.missions||0} prestation(s) · revenus nets ${d.consideration||0} € · commissions et frais ${d.fees||0} €`,'','Montants en euros, arrondis à l\'euro le plus proche. Ces informations sont également transmises à la DGFiP',
+    '(article 1649 ter A du Code général des impôts, directive DAC7). Vous devez déclarer vous-même ces revenus.','',LIVE?'':'DÉMONSTRATION : document fictif, sans valeur fiscale.'];
+  return new Uint8Array(pdfBytes(`Attestation fiscale ${year}`,lines.join('\n')))}
+function dac7Zip(y){const done=certs=>{if(!certs.length){toast('Aucune attestation générée pour cette année.',true);return}
+    const used=new Set(),files=certs.map(c=>{let base=`Attestation-${y}-${String(c.business_name||c.data&&c.data.name||c.name||'accompagnateur').normalize('NFD').replace(/[̀-ͯ]/g,'').replace(/[^A-Za-z0-9]+/g,'-').replace(/^-|-$/g,'')}`;let n=base,i=2;while(used.has(n))n=base+'-'+i++;used.add(n);return{name:n+'.pdf',bytes:certBytes(y,c)}});
+    saveFile(`Attestations-fiscales-${y}${LIVE?'':'-demonstration'}.zip`,makeZip(files));toast(`${files.length} attestation(s) réunie(s) dans l'archive ZIP.`)};
+  if(LIVE){liveCall('tax-admin',{action:'certificates_bundle',year:y}).then(r=>done(r.certificates||[])).catch(e=>tr_(e.message,true));return}
+  if(!(comp('c1').certs||[]).some(x=>x.year===y)){toast('Générez d\'abord les attestations individuelles.',true);return}
+  done(demoSellers(y).map(x=>({name:x.c.name,version:1,nif:x.t.nif,postal_address:x.t.addr,tax_country:x.t.country||'FR',data:{name:x.c.name,quarters:x.Q.map(q=>({missions:q.missions,consideration:netOf(q),fees:eurInt(q.fees),taxes:0})),missions:x.missions,consideration:x.Q.reduce((s,q)=>s+netOf(q),0),fees:x.Q.reduce((s,q)=>s+eurInt(q.fees),0)}})))}
+const b64Of=file=>file.arrayBuffer().then(buf=>{let s='';const u=new Uint8Array(buf);for(let i=0;i<u.length;i+=32768)s+=String.fromCharCode.apply(null,u.subarray(i,i+32768));return btoa(s)});
+
+/* ---------- Actions ---------- */
+function v28Click(a,el,id,v,b){switch(a){
+  case'ins-admin':S.insQ='';S.insF='tous';open('insadmin');insLoad();return true;
+  case'ins-required':{const on=!(insData()||{}).required;if(LIVE){liveCall('insurance',{action:'required',on}).then(()=>{tr_(on?'Assurance obligatoire activée.':'Assurance obligatoire désactivée.');insLoad()}).catch(e=>tr_(e.message,true));return false}
+    S.insRequired=on;log('Administrateur Side by Side',`Assurance obligatoire pour réserver : ${on?'activée':'désactivée'}`,'—');toast(on?'Assurance obligatoire activée.':'Assurance obligatoire désactivée.');return true}
+  case'ins-doc':{const iid=el.dataset.id;if(LIVE){liveCall('insurance',{action:'doc',id:iid}).then(r=>{window.open(r.url,'_blank','noopener');insLoad()}).catch(e=>tr_(e.message,true));return false}
+    const r=insData().rows.find(x=>x.id===iid);(S.insHist=S.insHist||[]).unshift({insId:iid,decision:'consultation',t:now()});log('Administrateur Side by Side','Assurance : consultation d\'un justificatif',r?r.name:'—');
+    if(r&&r.file)saveFile(r.file.name,r.file);else toast('Démonstration : attestation fictive, aucun fichier réel.');return true}
+  case'ins-ok':{const iid=el.dataset.id;if(LIVE){liveCall('insurance',{action:'review',id:iid,approve:true}).then(()=>{tr_('Attestation validée : réservations réactivées.');insLoad()}).catch(e=>tr_(e.message,true));return false}
+    insReview(iid,true,'');return true}
+  case'dac7-generate':{if(!LIVE)return false;const D=dac7Data(),corr=!!(D&&D.declarations.find(d=>['validee','transmise','acceptee','a_corriger'].includes(d.status)));
+    liveCall('tax-admin',{action:'generate',year:S.dac7Year||new Date(now()).getFullYear()-1,correction:corr}).then(r=>{if(r&&r.xml)saveFile(`${r.declaration.message_ref_id}.xml`,new Blob([r.xml],{type:'application/xml'}));dac7Load()}).catch(e=>tr_(e.message,true));return true}
+  case'dac7-fix':{const y=S.dac7Year||new Date(now()).getFullYear()-1;if(LIVE){liveCall('tax-admin',{action:'generate',year:y,correction:true}).then(r=>{if(r&&r.xml)saveFile(`${r.declaration.message_ref_id}.xml`,new Blob([r.xml],{type:'application/xml'}));tr_('Déclaration corrective générée : validez-la puis transmettez-la.');dac7Load()}).catch(e=>tr_(e.message,true));return true}
+    const L=S.demoDecl[y]||[],src=L.find(d=>d.status==='a_corriger');if(!src)return true;let xml=demoXml(y,demoSellers(y)).replace('<dpi:MessageTypeIndic>DPI401','<dpi:MessageTypeIndic>DPI402').replace(/OECD11/g,'OECD12');
+    L.push({id:'demo'+Date.now(),version:L.length+1,kind:'corrective',status:'brouillon',corrects:src.id,message_ref_id:xml.match(/<dpi:MessageRefId>([^<]+)/)[1],sellers:(src.errors||[]).length||1,total_consideration:dac7Data().total_consideration,xml});
+    saveFile(`DAC7-${y}-DEMONSTRATION-corrective-test.xml`,new Blob([xml],{type:'application/xml'}));toast('Démonstration : déclaration corrective de test générée (à ne jamais transmettre).');return true}
+  case'dac7-zip':dac7Zip(S.dac7Year||new Date(now()).getFullYear()-1);return false;
+  default:return false}}
+function insReview(iid,approve,reason){let r=null,cc=null;S.companions.forEach(c=>(c.ins||[]).forEach(i=>{if(i.id===iid){r=i;cc=c}}));if(!r||r.status!=='en_attente'){toast('Attestation déjà traitée.',true);return}
+  if(approve&&r.end<isoDay(now())){r.status='expiree';toast('Attestation expirée : validation impossible.',true);return}
+  r.status=approve?'validee':'refusee';r.reason=approve?null:reason;r.reviewed=now();(S.insHist=S.insHist||[]).unshift({insId:iid,decision:approve?'validee':'refusee',reason:approve?null:reason,t:now()});
+  log('Administrateur Side by Side',`Assurance ${approve?'validée':'refusée'} : ${cc.name}${approve?'':` (${reason})`}`,'—');
+  if(cc.id==='c1')notify('companion',approve?`Votre attestation d'assurance (${r.insurer}) est validée jusqu'au ${frDay(r.end)}. Vous pouvez recevoir des réservations.`:`Votre attestation d'assurance a été refusée : ${reason}. Déposez une nouvelle attestation dans Profil → Mon assurance.`);
+  toast(approve?`Attestation de ${cc.name} validée : réservations réactivées.`:`Attestation de ${cc.name} refusée.`)}
+function v28Submit(k,f,d){
+  if(k==='ins-search'){S.insQ=String(d.q||'').trim();S.insF=d.f||'tous';return true}
+  if(k==='ins-refuse'){const reason=String(d.reason||'').trim();if(reason.length<5){toast('Indiquez le motif du refus.',true);return 'stop'}
+    if(LIVE){liveCall('insurance',{action:'review',id:f.dataset.id,approve:false,reason}).then(()=>{tr_('Attestation refusée : l\'accompagnateur est informé du motif.');insLoad()}).catch(e=>tr_(e.message,true));return 'stop'}
+    insReview(f.dataset.id,false,reason);return true}
+  if(k==='ins-up'){const e=m=>{const p=document.getElementById('ins-err');p.textContent=tr(m);p.hidden=false;return 'stop'},file=f.querySelector('[name=doc]').files[0],today=isoDay(now());
+    const insurer=String(d.insurer||'').trim(),policy=String(d.policy||'').trim();
+    if(insurer.length<2)return e('Indiquez le nom de la compagnie d\'assurance.');if(policy.length<3)return e('Indiquez le numéro du contrat.');
+    if(!d.start||!d.end)return e('Indiquez les dates de début et d\'expiration.');if(d.end<=d.start)return e('La date d\'expiration doit suivre la date de début.');if(d.end<today)return e('Cette attestation est déjà expirée.');
+    if(!file)return e('Ajoutez l\'attestation d\'assurance.');if(file.size>10*1024*1024||!/^(application\/pdf|image\/(jpeg|png))$/.test(file.type))return e('Attestation : PDF, JPG ou PNG, 10 Mo maximum.');
+    if(!d.covers)return e('Confirmez que vos garanties couvrent les prestations rémunérées d\'accompagnement.');
+    if(LIVE){(async()=>{const path=`${ME.id}/rc-${Date.now()}.${file.type==='application/pdf'?'pdf':file.type==='image/png'?'png':'jpg'}`;const up=await SB.storage.from('insurance').upload(path,file,{contentType:file.type});if(up.error)return tr_('Envoi de l\'attestation impossible.',true);
+      const {error}=await SB.from('companion_insurances').insert({companion_id:ME.id,insurer,policy_number:policy,starts_on:d.start,ends_on:d.end,doc_path:path,covers_paid_activity:true});
+      if(error)return tr_(/expir/.test(error.message)?'Cette attestation est déjà expirée.':'Enregistrement impossible.',true);tr_('Attestation transmise : vérification par l\'équipe Side by Side.');liveInsLoad()})();return true}
+    const c=comp('c1'),it={id:'ins'+Date.now(),insurer,policy,start:d.start,end:d.end,status:'en_attente',created:now(),file};(c.ins=c.ins||[]).push(it);(S.insHist=S.insHist||[]).unshift({insId:it.id,decision:'depot',t:now()});
+    notify('admin',`Nouvelle attestation d'assurance à vérifier (${c.name}).`);log(c.name,'Attestation d\'assurance déposée','—');toast('Attestation transmise : vérification par l\'équipe Side by Side.');return true}
+  if(k==='taxinfo3'){const e=m=>{const p=document.getElementById('t3-err');p.textContent=tr(m);p.hidden=false;return 'stop'},vat=String(d.vat||'').replace(/\s/g,'').toUpperCase(),bn=String(d.business||'').trim(),c=comp('c1'),legal=(c.adm&&c.adm.legal)||'';
+    if(legal==='societe'&&bn.length<2)return e('Indiquez la raison sociale.');if(vat&&!/^[A-Z]{2}[0-9A-Z]{2,13}$/.test(vat))return e('Numéro de TVA : 2 lettres du pays puis le numéro (ex. FR00123456789).');if(vat.startsWith('FR')&&!/^FR[0-9A-Z]{2}\d{9}$/.test(vat))return e('Numéro de TVA français : FR + 2 caractères + SIREN (9 chiffres).');
+    c.tax={...(c.tax||{}),vat,...(legal==='societe'?{business:bn}:{})};
+    if(LIVE){SB.from('companions').update({vat_number:vat||null,...(legal==='societe'?{business_name:bn}:{})}).eq('id',ME.id).then(({error})=>{tr_(error?'Enregistrement impossible.':'Informations enregistrées.',!!error);liveTaxLoad()})}else toast('Informations enregistrées.');return true}
+  if(k==='dac7-import'){const file=f.querySelector('[name=file]').files[0],y=S.dac7Year||new Date(now()).getFullYear()-1,ref=String(d.reference||'').trim();
+    if(!file){toast('Choisissez le document officiel (XML ou PDF).',true);return 'stop'}if(file.size>5*1024*1024){toast('Document trop volumineux (5 Mo au plus).',true);return 'stop'}
+    const pdf=/pdf$/i.test(file.type)||/\.pdf$/i.test(file.name);if(pdf&&!d.official){toast('PDF : indiquez le statut figurant sur le document officiel.',true);return 'stop'}
+    if(LIVE){b64Of(file).then(content_b64=>liveCall('tax-admin',{action:'import_receipt',year:y,id:d.id,file_name:file.name,content_b64,official_status:d.official||undefined,reference:ref||undefined}))
+      .then(r=>{tr_(`Document importé : ${OFF[r.official]||r.official}${r.errors&&r.errors.length?` (${r.errors.length} erreur(s) à corriger)`:''}.`);dac7Load()}).catch(e=>tr_(e.message,true));return 'stop'}
+    file.text().then(txt=>{const x=(S.demoDecl[y]||[]).find(z=>z.id===d.id);if(!x)return;let off=d.official,errors=[],reference=ref;
+      if(!pdf){const p=parseSM(txt);if(p.original&&p.original!==x.message_ref_id){toast(`Ce compte rendu concerne une autre déclaration (${p.original}).`,true);return}off=p.official==='recu'&&d.official?d.official:p.official;errors=p.errors;reference=reference||p.original||x.message_ref_id}
+      if(reference.length<3){toast('Indiquez la référence figurant sur le document officiel.',true);return}
+      ((S.demoRcpt=S.demoRcpt||{})[y]=S.demoRcpt[y]||[]).push({reference,file_name:file.name,official_status:off,errors,t:now()});
+      x.status={recu:'transmise',accepte:'acceptee',accepte_avec_erreurs:'a_corriger',rejete:'rejetee'}[off];x.errors=errors;x.receipt_ref=reference;
+      if(x.status==='acceptee'&&x.corrects){const o=(S.demoDecl[y]||[]).find(z=>z.id===x.corrects&&z.status==='a_corriger');if(o){o.status='acceptee';o.errors=[]}}
+      log('Administrateur Side by Side',`Fiscalité ${y} : document officiel importé (${OFF[off]})`,x.message_ref_id);toast(`Démonstration : document importé — ${OFF[off]}.`);render()});return 'stop'}
+  return false}
+
+/* ---------- Mode connecté : chargements ---------- */
+function liveInsLoad(){if(!LIVE||!ME||ME.role!=='companion')return;SB.from('companion_insurances').select('id,insurer,policy_number,starts_on,ends_on,status,refusal_reason,created_at').order('created_at',{ascending:false}).then(({data})=>{
+  S.liveIns=(data||[]).map(i=>({id:i.id,insurer:i.insurer,policy:i.policy_number,start:i.starts_on,end:i.ends_on,status:i.status,reason:i.refusal_reason,created:Date.parse(i.created_at)}));render()})}
+function liveTax28(){if(!LIVE||!ME||ME.role!=='companion')return;const y=S.fiscalYear||new Date(now()).getFullYear();
+  Promise.all([SB.rpc('tax_profile_issues',{p_companion:ME.id}),SB.rpc('my_tax_breakdown',{p_year:y}),SB.from('companions').select('business_name,vat_number').eq('id',ME.id).single()]).then(([i,b,c])=>{
+    S.liveIssues=i.error?null:(i.data||[]);S.liveMyBd={year:y,row:(b.data||[])[0]||null};const cc=comp('c1'),x=c.data||{};if(cc)cc.tax={...(cc.tax||{}),business:x.business_name||'',vat:x.vat_number||''};render()})}
+
+function v28Init(){if(window.__v28)return;window.__v28=1;
+  Object.assign(DST,{a_corriger:['À corriger','t-warn']});
+  EXTRA_SHEETS.insadmin=(s,h)=>insSheet(s,h);
+  const _pP=pProfile;pProfile=(...x)=>_pP(...x)+insCard();
+  const btn=`<section class="section"><button class="btn full" data-a="ins-admin">Gestion des assurances</button></section>`;
+  const _aD=aDash;aDash=(...x)=>_aD(...x)+btn;if(LIVE&&typeof lAdmDash==='function'&&lAdmDash!==aDash){const _l=lAdmDash;lAdmDash=(...x)=>_l(...x)+btn}
+  // Mes documents fiscaux : un seul contrôle des informations (selon le statut) et le détail des montants
+  const _fd=fiscalDocs;fiscalDocs=(...x)=>{const y=S.fiscalYear||new Date(now()).getFullYear();return _fd(...x).replace(/<div class="note t-warn sm">Informations fiscales à compléter :[^<]*<\/div>/,'').replace('<span class="lbl">Attestations annuelles</span>',myBreakdownHtml(y)+'<span class="lbl">Attestations annuelles</span>')+taxStatusCard()};
+  // Déclarations : statut détaillé, ventilation, documents officiels, ZIP
+  const _ds=EXTRA_SHEETS.dac7admin;EXTRA_SHEETS.dac7admin=(s,h)=>{let x=_ds(s,h);const D=dac7Data(),y=S.dac7Year||new Date(now()).getFullYear()-1;if(!D)return x;
+    const decl=D.declarations||[],fix=decl.some(d=>d.status==='a_corriger')&&!decl.some(d=>['validee','transmise','acceptee'].includes(d.status));
+    if(fix)x=x.replace('Générer la déclaration DAC7 (XML)','Corriger une déclaration').replace('data-a="dac7-certs" disabled','data-a="dac7-certs"').replace('data-a="dac7-send" disabled','data-a="dac7-send"');
+    return x.replace('<div class="kpis">',stageBanner(D,y)+'<div class="kpis">').replace('<span class="lbl">Historique des déclarations',dac7Extra(D,y)+'<span class="lbl">Historique des déclarations')};
+  // Réservation : bloquée sans assurance valide de l'accompagnateur pendant toute la prestation
+  const _cr=api.create.bind(api);api.create=(cid,fm)=>{const c=comp(cid),st=new Date(fm.start).getTime();if(!LIVE&&c&&!isNaN(st)&&!insOk(cid,st,+fm.hours||1))return{err:`${c.name} ne peut pas recevoir de réservation pour le moment (attestation d'assurance à jour en attente).`};return _cr(cid,fm)};
+  // Données de démonstration (fictives) : la plupart des accompagnateurs assurés, un en attente, un expiré, un qui expire bientôt
+  const CO=['AXA','MAIF','Hiscox','MMA','Groupama','Allianz','MACIF','Generali','Matmut','April'],d0=now();
+  S.companions.forEach((c,i)=>{if(c.ins)return;const id='ins-'+c.id,start=isoDay(d0-(60+i*9)*DAY);
+    if(c.id==='c13'){c.ins=[{id,insurer:'Matmut',policy:'RC-'+(482910+i),start:isoDay(d0-380*DAY),end:isoDay(d0-15*DAY),status:'expiree',created:d0-382*DAY}];return}
+    if(c.id==='c12'){c.ins=[{id:id+'-1',insurer:'Generali',policy:'RC-'+(482910+i),start:isoDay(d0-370*DAY),end:isoDay(d0-5*DAY),status:'expiree',created:d0-372*DAY},{id,insurer:'Generali',policy:'RC-'+(582910+i),start:isoDay(d0-4*DAY),end:isoDay(d0+361*DAY),status:'en_attente',created:d0-DAY}];return}
+    c.ins=[{id,insurer:CO[i%CO.length],policy:'RC-'+(482910+i*37),start,end:isoDay(d0+(c.id==='c6'?12:200+i*11)*DAY),status:'validee',created:d0-(62+i*9)*DAY,reviewed:d0-(61+i*9)*DAY}]});
+  S.insHist=S.insHist||S.companions.flatMap(c=>(c.ins||[]).flatMap(i=>[{insId:i.id,decision:'depot',t:i.created},...(i.reviewed?[{insId:i.id,decision:'validee',t:i.reviewed}]:[]),...(i.status==='expiree'?[{insId:i.id,decision:'expiree',t:Date.parse(i.end)+DAY}]:[])])).sort((a,b)=>b.t-a.t);
+  if(S.insRequired===undefined)S.insRequired=true;
+  if(LIVE){const _l=liveLoad;liveLoad=async(...x)=>{const r=await _l(...x);liveInsLoad();liveTax28();return r};const _t=liveTaxLoad;liveTaxLoad=(...x)=>{_t(...x);liveTax28()}}}
 
 /* ================= V2.5 — Mode connecté, lot 2 : mission, SOS, notifications, identité, RGPD, administration sécurisée =================
    Tout ce qui suit ne s'exécute qu'en mode connecté (application native). La démo en ligne ne change pas. */
