@@ -30,6 +30,10 @@ const r = await fetch(`https://api.supabase.com/v1/projects/${PROJECT}/config/au
   method: "PATCH", headers: { Authorization: `Bearer ${TOKEN}`, "Content-Type": "application/json" }, body: JSON.stringify(patch),
 });
 const keys = Object.keys(patch).filter((k) => !/pass|secret/.test(k));
-if (!r.ok) { console.log(`Réglages refusés par Supabase (${r.status}) : ${(await r.text()).slice(0, 300)}`); process.exit(1); }
+if (!r.ok) {
+  console.log(`::warning::Réglages de connexion non appliqués (${r.status}) : ${(await r.text()).slice(0, 300)}`);
+  console.log("À faire une fois dans Supabase → Authentication → URL Configuration : Site URL = " + DEEP + " ; Redirect URLs = fr.zyntell.sidebyside://** (ou créer un jeton d'accès avec la permission auth_config_write).");
+  process.exit(0);
+}
 console.log(`Réglages de connexion appliqués : ${keys.join(", ")}`);
 console.log(`E-mails personnalisés : ${RESEND_API_KEY ? "oui (Resend)" : "non (secret RESEND_API_KEY absent)"} · Google : ${GOOGLE_CLIENT_ID ? "activé" : "non configuré"} · Apple : ${APPLE_CLIENT_ID ? "activé" : "non configuré"}`);
