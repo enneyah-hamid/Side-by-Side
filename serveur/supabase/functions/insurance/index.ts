@@ -21,11 +21,14 @@ serve(async (req) => {
   switch (body.action) {
     case "list": {                                          // listes, recherche et filtres
       const { data, error } = await admin.from("companion_insurances")
-        .select("id, companion_id, insurer, policy_number, starts_on, ends_on, status, refusal_reason, reviewed_at, created_at, profiles:companion_id(first_name, last_name)")
+        .select("id, companion_id, insurer, policy_number, starts_on, ends_on, status, refusal_reason, reviewed_at, created_at")
         .order("created_at", { ascending: false }).limit(1000);
       if (error) throw error;
+      const ids = [...new Set((data ?? []).map((i: any) => i.companion_id))];
+      const { data: ppl } = ids.length ? await admin.from("profiles").select("id, first_name, last_name").in("id", ids) : { data: [] };
+      const who = new Map((ppl ?? []).map((p: any) => [p.id, `${p.first_name} ${p.last_name}`]));
       const q = String(body.q ?? "").trim().toLowerCase(), f = String(body.filter ?? "tous");
-      const rows = (data ?? []).map((i: any) => ({ ...i, name: `${i.profiles?.first_name ?? ""} ${i.profiles?.last_name ?? ""}`.trim(), state: stateOf(i), profiles: undefined }))
+      const rows = (data ?? []).map((i: any) => ({ ...i, name: who.get(i.companion_id) ?? "", state: stateOf(i) }))
         .filter((i) => !q || `${i.name} ${i.insurer} ${i.policy_number}`.toLowerCase().includes(q))
         .filter((i) => f === "tous" || (f === "assures" ? ["valide", "expire_bientot"].includes(i.state) : f === "attente" ? i.state === "en_attente" : f === "expirees" ? i.state === "expiree" : f === "refusees" ? i.state === "refusee" : f === "bientot" ? i.state === "expire_bientot" : true));
       // Accompagnateurs vérifiés sans aucune attestation valide : non réservables
