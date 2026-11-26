@@ -1,0 +1,11 @@
+const {chromium}=require('playwright');(async()=>{const b=await chromium.launch();const errs=[],R=[];const ck=(id,l,ok,d='')=>{R.push(ok);console.log((ok?'✅ ':'❌ ')+id+' '+l+(d?' — '+d:''))};
+const page=async()=>{const p=await (await b.newContext({viewport:{width:400,height:860},acceptDownloads:true})).newPage();p.on('pageerror',e=>errs.push(e.message));await p.goto('file:///tmp/livetest/index.html');await p.waitForTimeout(800);return p};
+const login=async(p,e)=>{await p.fill('#lv-mail',e);await p.fill('#lv-pw','Motdepasse1!');await p.click('form[data-form="live-login"] button.pri');await p.waitForTimeout(1000)};
+let p=await page();await login(p,'camille@test.fr');await p.evaluate(()=>{S.tab='earnings';render()});await p.waitForTimeout(500);let t=(await p.evaluate(()=>document.body.innerText)).toLowerCase();
+ck('L01','Mode connecté : revenus de l\'année chargés depuis le serveur',t.includes('mes documents fiscaux')&&/revenus nets/.test(t)&&t.includes('3'),'');
+ck('L02','Mode connecté : attestation publiée listée',t.includes('attestation 2025'));
+p=await page();await login(p,'admin@test.fr');await p.fill('#mfa-code','123456');await p.click('form[data-form="live-mfa"] button');await p.waitForTimeout(900);
+await p.evaluate(()=>document.querySelector('[data-a="dac7"]').click());await p.waitForTimeout(700);t=(await p.evaluate(()=>document.querySelector('.sheet')?document.querySelector('.sheet').innerText:'')).toLowerCase();
+ck('L03','Mode connecté : tableau de bord DAC7 de l\'admin (avec double authentification)',t.includes('fiscalité et déclarations dac7')&&t.includes('812')&&!t.includes('fichier de test'));
+ck('L04','Mode connecté : génération bloquée tant qu\'une information obligatoire manque',await p.evaluate(()=>document.querySelector('[data-a="dac7-generate"]').disabled));
+ck('L05','Aucune erreur JavaScript',!errs.length,errs.join('|'));console.log(`${R.filter(Boolean).length}/${R.length} tests réussis`);await b.close()})();

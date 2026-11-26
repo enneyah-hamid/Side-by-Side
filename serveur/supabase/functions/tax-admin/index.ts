@@ -73,8 +73,8 @@ serve(async (req) => {
       const indic = correcting ? "DPI402" : S.length ? "DPI401" : "DPI403";
       const sellersX = rows.map((r, i) => ({ s: r.s, docRefId: `${msgRef}_V${String(i + 1).padStart(5, "0")}`, docType: r.docType, corrDocRefId: r.corr }));
       const xml = buildDpiXml({ operator: op, year, messageRefId: msgRef, indic, timestamp: stamp, opDocRefId: `${msgRef}_P`, opDocType: correcting ? "OECD0" : "OECD1", sellers: sellersX });
-      const path = `fiscal/${year}/${msgRef}.xml`;
-      const up = await admin.storage.from("documents").upload(path, new Blob([xml], { type: "application/xml" }), { upsert: false });
+      const path = `${year}/${msgRef}.xml`;
+      const up = await admin.storage.from("fiscal").upload(path, new Blob([xml], { type: "application/xml" }), { upsert: false });
       if (up.error) throw up.error;
       const tot = rows.reduce((a, r) => { const t = totalOf(r.s); return { c: a.c + t.consideration, f: a.f + t.fees }; }, { c: 0, f: 0 });
       const { data: d, error } = await admin.from("tax_declarations").insert({ year, version, kind: correcting ? "corrective" : S.length ? "initiale" : "neant", message_ref_id: msgRef, message_type_indic: indic,
@@ -94,7 +94,7 @@ serve(async (req) => {
     case "download": {
       const { data: d } = await admin.from("tax_declarations").select("*").eq("id", body.id).single();
       if (!d?.xml_path) throw new HttpError(404, "Fichier introuvable");
-      const f = await admin.storage.from("documents").download(d.xml_path);
+      const f = await admin.storage.from("fiscal").download(d.xml_path);
       if (f.error) throw f.error;
       const xml = await f.data.text();
       if (await sha256(xml) !== d.xml_sha256) throw new HttpError(500, "Fichier archivé altéré : téléchargement bloqué");

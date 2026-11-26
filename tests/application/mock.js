@@ -6,7 +6,7 @@ const db={users:[{id:'uA',email:'admin@test.fr',pw:'Motdepasse1!',confirmed:true
            {id:'uA',role:'admin',first_name:'Hamid',last_name:'E',city:'Maromme',identity_verified:true,suspended:false},
            {id:'uN',role:'client',first_name:'Paul',last_name:'N',city:'Paris',identity_verified:false,suspended:false}],
  companions:[{id:'uP',first_name:'Camille',city:'Paris',area:'Le Marais',bio:'Guide passionnée',hourly_rate:35,tier:'Standard',languages:['Français','Anglais'],categories:['shopping','musees','seniors'],included:[],excluded:[],work_days:[0,1,2,3,4,5,6],hour_from:9,hour_to:21,rating:5,reviews:2}],
- bookings:[],messages:[],notifications:[],identity_checks:[],uploads:[],calls:[],seq:1100,aal:'aal1',factor:null};
+ bookings:[],messages:[],notifications:[],tax_certificates:[{year:2025,version:1,data:{quarters:[{missions:1,consideration:61,fees:14,taxes:0},{missions:0,consideration:0,fees:0,taxes:0},{missions:0,consideration:0,fees:0,taxes:0},{missions:1,consideration:84,fees:21,taxes:0}],missions:2,consideration:145,fees:35},published_at:'2026-01-20T10:00:00Z'}],companions_rows:[],identity_checks:[],uploads:[],calls:[],seq:1100,aal:'aal1',factor:null};
 let session=null;const subs=[];window.__db=db;
 const ok=d=>Promise.resolve({data:d,error:null}),ko=m=>Promise.resolve({data:null,error:{message:m}}),ko2=(st,m)=>Promise.resolve({data:null,error:{message:m,context:{json:async()=>({error:m})}}});
 const prof=()=>db.profiles.find(p=>p.id===session.user.id);
@@ -17,6 +17,7 @@ function q(table){let rows=null,filters=[],single=false,op='select',payload=null
       else{rows=(db[table]||[]).filter(r=>filters.every(f=>f(r)));out={data:single?rows[0]||null:rows,error:single&&!rows[0]?{message:'not found'}:null}}
       return Promise.resolve(out).then(res,rej)}};return api}
 function rpc(name){const me=session&&session.user.id;
+  if(name==='my_tax_year')return ok([{month:3,quarter:1,missions:2,gross:140,fees:28,tips:5,annex:0},{month:11,quarter:4,missions:1,gross:105,fees:21,tips:0,annex:0}]);
   if(name==='companions_directory')return ok(db.companions);
   if(name==='my_bookings')return ok(db.bookings.filter(b=>b.client_id===me||b.companion_id===me).map(b=>({booking:b,client_first_name:db.profiles.find(p=>p.id===b.client_id).first_name,companion_first_name:db.profiles.find(p=>p.id===b.companion_id).first_name})));
   return ko('unknown rpc')}
@@ -30,6 +31,9 @@ function invoke(fn,{body}){const me=session&&session.user.id;let r;db.calls.push
     if(a==='interrupt')b.status='incident';
     if(a==='dispute')b.status='contestee';
     subs.forEach(f=>f());return ok({ok:true})}
+  if(fn==='tax-admin'){if(db.aal!=='aal2')return ko2(403,'Double authentification requise');db.calls.push({fn,body});
+    if(body.action==='overview')return ok({year:body.year,companions_total:12,concerned:3,total_missions:9,total_consideration:812,total_fees:203,sellers:[{name:'Camille D',missions:3,consideration:279,fees:49,issues:0}],issues:[{who:'Zyntell (opérateur)',field:'SIREN',blocking:true,message:'SIREN manquant'}],blocking:1,declarations:[],certificates_published:0,deadline:'x',portal:'https://www.impots.gouv.fr'});
+    if(body.action==='export')return ok({csv:'\ufeffAnnée;Nom',name:'x.csv'});return ok({ok:true})}
   if(fn==='sos')return ok({ok:true,emergency_number:'112'});
   if(fn==='create-payment')return ko2(503,'Le paiement en ligne sera disponible très bientôt.');
   if(fn==='account')return ok(body.action==='export'?{profile:prof(),bookings:[]}:{ok:true});

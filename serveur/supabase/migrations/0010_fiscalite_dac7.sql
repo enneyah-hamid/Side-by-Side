@@ -145,3 +145,8 @@ begin
 end $$;
 drop trigger if exists trg_protect_tax_decl on tax_declarations;
 create trigger trg_protect_tax_decl before update or delete on tax_declarations for each row execute function private.protect_tax_declaration();
+
+-- 7. Archivage sécurisé des déclarations : espace privé dédié (aucune lecture directe, accès par le serveur uniquement)
+insert into storage.buckets (id, name, public, file_size_limit, allowed_mime_types)
+values ('fiscal', 'fiscal', false, 104857600, array['application/xml','text/xml'])
+on conflict (id) do nothing;

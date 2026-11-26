@@ -1,0 +1,35 @@
+const {chromium}=require('playwright');const fs=require('fs');
+(async()=>{const b=await chromium.launch();const ctx=await b.newContext({viewport:{width:400,height:860},acceptDownloads:true});const p=await ctx.newPage();const errs=[];p.on('pageerror',e=>errs.push(e.message));
+await p.goto('file:///tmp/demo.html');await p.waitForTimeout(900);const R=[];const ck=(id,l,ok,d='')=>{R.push(ok);console.log((ok?'✅ ':'❌ ')+id+' '+l+(d?' — '+d:''))};const ev=(f,a)=>p.evaluate(f,a);
+const dl=async(sel)=>{const [d]=await Promise.all([p.waitForEvent('download',{timeout:5000}).catch(()=>null),p.click(sel)]);if(!d)return null;const path='/tmp/dl-'+d.suggestedFilename();await d.saveAs(path);return{name:d.suggestedFilename(),buf:fs.readFileSync(path)}};
+// Accompagnateur
+await ev(()=>{S.role='companion';S.tab='earnings';render()});let t=(await ev(()=>document.body.innerText)).toLowerCase();
+ck('F01','Rubrique « Mes documents fiscaux » dans les revenus',t.includes('mes documents fiscaux')&&t.includes('commissions et frais prélevés'));
+ck('F02','Revenus trimestriels et annuels + détail mensuel',t.includes('t1')&&t.includes('t4')&&t.includes('détail mensuel'));
+const m=await ev(()=>{const y=new Date(now()).getFullYear(),M=taxMonths('c1',y),Q=quarters(M);const sumM=M.reduce((a,x)=>a+x.missions,0),sumQ=Q.reduce((a,x)=>a+x.missions,0);const paid=S.bookings.filter(b=>b.companionId==='c1'&&b.status==='cloturee'&&new Date(stepT(b,'cloturee')||endOf(b)).getFullYear()===y).length;return{sumM,sumQ,paid}});
+ck('F03','Nombre de prestations cohérent (mois = trimestres = missions versées)',m.sumM===m.sumQ&&m.sumQ===m.paid,JSON.stringify(m));
+let f=await dl('[data-a="cert-pdf"]');ck('F04','Attestation annuelle téléchargeable en PDF',!!f&&f.buf.slice(0,8).toString()==='%PDF-1.4'&&f.buf.toString('latin1').includes('Attestation annuelle'),f&&f.name);
+await ev(()=>{const x=document.querySelector('form[data-form="taxinfo2"]');x.nif.value='123';x.bcity.value='Rouen';x.querySelector('button').click()});
+ck('F05','Numéro fiscal invalide refusé',/13 chiffres/.test(await ev(()=>document.getElementById('t2-err').textContent)));
+await ev(()=>{const x=document.querySelector('form[data-form="taxinfo2"]');x.nif.value='1234567890123';x.bcity.value='Rouen';x.bcountry.value='fr';x.querySelector('button').click()});
+ck('F06','Informations fiscales enregistrées',(await ev(()=>comp('c1').tax.birthCity))==='Rouen');
+await ev(()=>{const s=document.getElementById('fy');s.value=String(new Date(now()).getFullYear()-1);s.dispatchEvent(new Event('change',{bubbles:true}))});
+ck('F07','Changement d\'année fiscale',(await ev(()=>S.fiscalYear))===new Date().getFullYear()-1);
+// Administrateur
+await ev(()=>{S.role='admin';S.adminOk=true;S.tab='dashboard';S.dac7Year=new Date(now()).getFullYear();open('dac7admin');render()});t=(await ev(()=>document.querySelector('.sheet').innerText)).toLowerCase();
+ck('A01','Rubrique « Fiscalité et déclarations DAC7 » avec tableau de bord',['accompagnateurs','concernés par la déclaration','rémunérations versées','commissions prélevées','informations manquantes','déclaration'].every(x=>t.includes(x)));
+ck('A02','Mention démonstration (aucune déclaration réelle avec des données fictives)',t.includes('fichier de test'));
+ck('A03','SIREN manquant signalé comme point bloquant',t.includes('siren')&&t.includes('bloquant'));
+ck('A04','Tous les boutons demandés sont présents',['vérifier les informations fiscales','générer les attestations individuelles','envoyer toutes les attestations','télécharger le récapitulatif','portail officiel','année fiscale'].every(x=>t.includes(x)));
+f=await dl('[data-a="dac7-export"]');const csv=f&&f.buf.toString('utf8');ck('A05','Récapitulatif tableur téléchargé (compatible Excel)',!!csv&&csv.startsWith('﻿Année;Nom')&&csv.split('\r\n').length>=2,f&&f.name);
+await ev(()=>{const D=dac7Data();D.blocking=0;});await ev(()=>{const x=document.querySelector('[data-a="dac7-generate"]');x.disabled=false});
+f=await dl('[data-a="dac7-generate"]');const xml=f&&f.buf.toString('utf8');
+ck('A06','Démonstration : XML de test (OECD11, mention « NE PAS TRANSMETTRE »)',!!xml&&xml.includes('NE PAS TRANSMETTRE')&&xml.includes('OECD11')&&xml.includes('<dpi:PersonalServices>'),f&&f.name);
+await ev(()=>render());const st=await ev(()=>{const b=document.querySelector('[data-a="dac7-validate"]');if(!b)return 'aucun brouillon';b.click();render();return dac7Data().declarations.map(d=>d.status).join(',')});
+ck('A07','Validation de la déclaration par l\'administrateur',st.includes('validee'),st);
+await ev(()=>{document.querySelector('[data-a="dac7-send"]').click();render()});
+ck('A08','Envoi des attestations → notification à l\'accompagnateur',await ev(()=>S.notifs.some(n=>n.to==='companion'&&/attestation fiscale/.test(n.text))));
+await ev(()=>{const x=document.querySelector('form[data-form="dac7-receipt"]');x.ref.value='AR-123';x.querySelector('button').click();render()});
+ck('A09','Accusé de réception enregistré',(await ev(()=>dac7Data().declarations.some(d=>d.status==='transmise'&&d.receipt_ref==='AR-123'))));
+ck('A10','Aucune erreur JavaScript',!errs.length,errs.join(' | '));
+console.log(`${R.filter(Boolean).length}/${R.length} tests réussis`);await b.close()})();
