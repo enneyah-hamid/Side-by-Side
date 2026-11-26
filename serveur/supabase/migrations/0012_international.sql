@@ -90,11 +90,12 @@ create function public.companions_directory()
 returns table (id uuid, first_name text, city text, area text, bio text, hourly_rate numeric, tier text,
                languages text[], categories text[], included text[], excluded text[],
                work_days int[], hour_from int, hour_to int, rating numeric, reviews int,
-               country text, city_key text, time_zone text)
+               country text, city_key text, time_zone text, insured boolean)
 language sql stable security definer set search_path = public as $$
   select c.id, p.first_name, p.city, c.area, c.bio, c.hourly_rate, c.tier, c.languages, c.categories,
          c.included, c.excluded, c.work_days, c.hour_from, c.hour_to,
-         round(avg(r.stars)::numeric, 1), count(r.id)::int, p.country, p.city_key, c.time_zone
+         round(avg(r.stars)::numeric, 1), count(r.id)::int, p.country, p.city_key, c.time_zone,
+         private.insurance_ok(c.id, now(), now() + interval '1 hour')
   from companions c
   join profiles p on p.id = c.id
   left join reviews r on r.target_id = c.id and r.status = 'publie'

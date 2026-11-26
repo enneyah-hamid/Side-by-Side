@@ -2987,7 +2987,7 @@ function freeAt(c,ts,hours){if(!c||c.paused||c.suspended||c.verified!=='ok')retu
   if(!(c.days||[]).includes(wd)||(c.blocked||[]).includes(key))return false;if(hh<c.from||hh+hours>c.to)return false;
   const en=ts+hours*H,buf=(c.buffer||0)*6e4;
   if(S.bookings.some(b=>b.companionId===c.id&&ACTIVE.includes(b.status)&&ts<endOf(b)+buf&&en+buf>b.start))return false;
-  if(typeof insOk==='function'&&!insOk(c.id,ts,hours))return false;return true}
+  if(LIVE){if(c.insured===false)return false}else if(typeof insOk==='function'&&!insOk(c.id,ts,hours))return false;return true}
 function catOk(c,cat){return !cat||cat==='autre'||c.cats.includes(cat)||(cat==='tourisme'&&c.cats.some(x=>['promenades','musees'].includes(x)))}
 // Résultats et message adapté à la situation réelle
 function searchRun(q){const tz=ctry(q.country)[3],ts=zonedTs(q.date,q.time,tz),dur=+q.dur;
@@ -3257,7 +3257,7 @@ function v29Init(){if(window.__v29)return;window.__v29=1;
       const r=await _lo(...x);splashHide();if(ME){try{const {data}=await SB.auth.getUser();ME._email=data.user&&data.user.email;ME._emailConfirmed=!!(data.user&&(data.user.email_confirmed_at||data.user.confirmed_at))}catch(e){}
         const u=S.users.u1;u.country=ME.country||'FR';u.interests=ME.interests||[];u.activities=ME.activities||[];u.emailPrefs=ME.email_prefs;u.notif=(ME.email_prefs&&ME.email_prefs.app)||['resa','msg','rappel'];if(ME.lang&&ME.lang!==S.lang)S.lang=ME.lang;
         if(!ME.birth_date&&ME.role!=='admin'){S.role=null;S.liveAuth={mode:'complete'};render();return r}liveReqLoad();liveOpenLoad()}return r};
-    const _ac=adaptCompanion;adaptCompanion=r=>({..._ac(r),country:r.country||'FR',tz:r.time_zone||undefined});
+    const _ac=adaptCompanion;adaptCompanion=r=>({..._ac(r),country:r.country||'FR',tz:r.time_zone||undefined,insured:r.insured});
     const _lc=liveCall;liveCall=(fn,body)=>{if(fn==='create-booking'&&S.pendingReq){body={...body,request_id:S.pendingReq};S.pendingReq=null}return _lc(fn,body)};
     try{const A=Capacitor.Plugins&&Capacitor.Plugins.App;if(A){A.addListener('appUrlOpen',e=>authReturn(e.url));A.getLaunchUrl&&A.getLaunchUrl().then(r=>r&&r.url&&authReturn(r.url)).catch(()=>{})}}catch(e){}
     if(/[?#&](code|access_token|error_description)=/.test(location.href))setTimeout(()=>authReturn(location.href).then(()=>history.replaceState(null,'',location.pathname)),0);
