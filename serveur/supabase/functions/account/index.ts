@@ -10,22 +10,23 @@ serve(async (req) => {
   const { action, confirm } = await req.json();
   if (action === "export") {
     const q = (t: string, col: string) => admin.from(t).select("*").eq(col, me.id);
-    const [companion, bookingsC, bookingsP, messages, reviews, notifications, identity, invoices, alerts] = await Promise.all([
+    const [companion, bookingsC, bookingsP, messages, reviews, notifications, identity, invoices, alerts, insurances] = await Promise.all([
       admin.from("companions").select("*").eq("id", me.id).maybeSingle(), q("bookings", "client_id"), q("bookings", "companion_id"),
       q("messages", "sender_id"), q("reviews", "author_id"), q("notifications", "user_id"),
-      admin.from("identity_checks").select("status, created_at, reviewed_at").eq("user_id", me.id), q("invoices", "recipient_id"), q("safety_alerts", "user_id")]);
+      admin.from("identity_checks").select("status, created_at, reviewed_at").eq("user_id", me.id), q("invoices", "recipient_id"), q("safety_alerts", "user_id"),
+      admin.from("companion_insurances").select("insurer, policy_number, starts_on, ends_on, status, refusal_reason, created_at").eq("companion_id", me.id)]);
     const { aal: _a, ...profile } = me;
     const strip = (rows: any[] | null) => (rows ?? []).map(({ stripe_payment_intent_id: _1, stripe_transfer_id: _2, payment_lock_at: _3, ...r }) => r);
     await audit(me.id, "Export RGPD de ses données");
     return json({ exported_at: new Date().toISOString(), profile, companion: companion.data, bookings: [...strip(bookingsC.data), ...strip(bookingsP.data)],
-      messages: messages.data, reviews: reviews.data, notifications: notifications.data, identity_checks: identity.data, invoices: invoices.data, safety_alerts: alerts.data });
+      messages: messages.data, reviews: reviews.data, notifications: notifications.data, identity_checks: identity.data, invoices: invoices.data, safety_alerts: alerts.data, insurances: insurances.data ?? [] });
   }
   if (action === "delete") {
     if (confirm !== "SUPPRIMER") throw new HttpError(400, "Confirmez en écrivant SUPPRIMER");
     const { count } = await admin.from("bookings").select("id", { count: "exact", head: true }).or(`client_id.eq.${me.id},companion_id.eq.${me.id}`).in("status", ACTIVE);
     if ((count ?? 0) > 0) throw new HttpError(409, "Terminez ou annulez d'abord vos réservations en cours");
-    // Documents d'identité et photos supprimés
-    for (const bucket of ["documents", "photos"]) {
+    // Documents d'identité, photos et attestations d'assurance supprimés (les références du contrat restent comme preuve)
+    for (const bucket of ["documents", "photos", "insurance"]) {
       const { data: files } = await admin.storage.from(bucket).list(me.id, { limit: 1000 });
       if (files?.length) await admin.storage.from(bucket).remove(files.map((f) => `${me.id}/${f.name}`));
     }

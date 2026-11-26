@@ -12,7 +12,7 @@ jobs:
         with: { version: latest }
       - uses: actions/setup-node@v4
         with: { node-version: 22 }
-      - name: Démarrer Supabase en local (migrations 0001 à 0008 appliquées)
+      - name: Démarrer Supabase en local (toutes les migrations appliquées)
         working-directory: serveur
         run: |
           [ -f supabase/config.toml ] || supabase init --force
@@ -47,16 +47,20 @@ jobs:
           npm init -y >/dev/null && npm i --silent @supabase/supabase-js@2.45.4 stripe@14.25.0
           SB_URL=$API_URL SB_ANON=$ANON_KEY SB_SERVICE=$SERVICE_ROLE_KEY INTERNAL_KEY=cle-interne-de-test-tres-longue-123456 STRIPE_WEBHOOK_SECRET=whsec_test_integration_side_by_side \
             node integration.mjs | tee resultats.txt
-      - name: Validation du XML DAC7 contre le schéma officiel OCDE DPI v1.0
-        if: always()
-        run: |
-          sudo apt-get install -y -qq libxml2-utils >/dev/null
-          mkdir -p xsd && cd xsd
-          for f in dpixml_v1.0.xsd oecddpitypes_v1.0.xsd isodpitypes_v1.0.xsd; do curl -sSfL -o $f https://www.vero.fi/contentassets/c3dcde0af9374153aada7e6c63f4cfcc/$f; done
-          xmllint --noout --schema dpixml_v1.0.xsd ../tests/dac7-exemple-ocde.xml 2>&1 | tee ../tests/resultats-xsd.txt
       - uses: denoland/setup-deno@v2
         if: always()
         with: { deno-version: v2.x }
+      - name: Tests unitaires du fichier DAC7 (société, TVA, comptes rendus officiels)
+        if: always()
+        run: set -o pipefail; SUPABASE_URL=http://localhost SUPABASE_SERVICE_ROLE_KEY=x deno test --node-modules-dir=none --allow-env --allow-net --allow-read --allow-write --allow-import tests/dpi_test.ts 2>&1 | tee tests/resultats-dpi.txt
+      - name: Validation du XML DAC7 contre le schéma officiel OCDE DPI v1.0
+        if: always()
+        run: |
+          set -o pipefail
+          sudo apt-get install -y -qq libxml2-utils >/dev/null
+          mkdir -p xsd && cd xsd
+          for f in dpixml_v1.0.xsd oecddpitypes_v1.0.xsd isodpitypes_v1.0.xsd; do curl -sSfL -o $f https://www.vero.fi/contentassets/c3dcde0af9374153aada7e6c63f4cfcc/$f; done
+          xmllint --noout --schema dpixml_v1.0.xsd ../tests/dac7-exemple-ocde.xml ../tests/dac7-exemple-entite-ocde.xml 2>&1 | tee ../tests/resultats-xsd.txt
       - name: Test des origines autorisées (CORS)
         if: always()
         run: set -o pipefail; SUPABASE_URL=http://localhost SUPABASE_SERVICE_ROLE_KEY=x APP_ORIGIN=https://sidebyside.example deno test --node-modules-dir=none --allow-env --allow-net --allow-read --allow-import tests/cors_test.ts 2>&1 | tee tests/resultats-cors.txt

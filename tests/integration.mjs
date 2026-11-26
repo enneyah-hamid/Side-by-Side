@@ -47,6 +47,8 @@ const count = async (t, f) => { let q = svc.from(t).select("*", { count: "exact"
 const at = (ms) => new Date(Date.now() + ms).toISOString();
 // Jour J+n à 10 h UTC (11 h ou 12 h à Paris) : toujours dans les horaires de l'accompagnateur
 const day = (n, h = 10) => { const d = new Date(); d.setUTCDate(d.getUTCDate() + n); d.setUTCHours(h, 0, 0, 0); return d.toISOString(); };
+// Assurance RC validée (fixture de test) : obligatoire pour être réservable
+const insure = (id, days = 400) => svc.from("companion_insurances").insert({ companion_id: id, insurer: "Assureur Test", policy_number: "RC-TEST-1", starts_on: at(-30 * 24 * H).slice(0, 10), ends_on: at(days * 24 * H).slice(0, 10), doc_path: `${id}/attestation.pdf`, covers_paid_activity: true, status: "validee" });
 const uniquePi = async (id) => { const pi = `pi_test_${crypto.randomUUID().replace(/-/g, "")}`; await svc.from("bookings").update({ stripe_payment_intent_id: pi }).eq("id", id); return pi; };
 // TOTP (RFC 6238) pour la double authentification de l'administrateur
 function totp(secret) {
@@ -84,6 +86,7 @@ async function confirmedBooking(client, comp, dayN, extra = {}) {
   check("A01", "Inscription avec le rôle « admin » demandé → compte client", (await row("profiles", fake.id)).role === "client");
   await svc.from("profiles").update({ role: "admin" }).eq("id", adm.id);
   await svc.from("companions").update({ verified: true, video_interview_ok: true, categories: ["shopping"], hour_from: 0, hour_to: 24, stripe_account_id: "acct_test123", payouts_enabled: true }).eq("id", comp.id);
+  await insure(comp.id);
   const minor = await svc.auth.admin.createUser({ email: "mineur@test.fr", password: "Test-Passw0rd!", email_confirm: true, user_metadata: { first_name: "Jeune", last_name: "T", birth_date: at(-16 * 365 * 24 * H).slice(0, 10), role: "client" } });
   check("A02", "Inscription d'une personne de moins de 18 ans refusée par la base", !!minor.error);
 
@@ -311,6 +314,7 @@ async function confirmedBooking(client, comp, dayN, extra = {}) {
   // Vérifications obligatoires de l'accompagnateur
   const comp2 = await user("hugo@test.fr", { ...base, first_name: "Hugo", role: "companion", non_circumvention: true });
   await svc.from("companions").update({ verified: true, video_interview_ok: true, categories: ["shopping"], hour_from: 0, hour_to: 24 }).eq("id", comp2.id);
+  await insure(comp2.id);
   const q2 = await call(c4, "create-booking", { companion_id: comp2.id, category: "shopping", starts_at: day(26), hours: 2, place: "Paris centre" });
   r = await call(comp2, "booking-action", { booking_id: q2.booking?.id, action: "accept" });
   check("H07", "Accompagnateur sans identité vérifiée : acceptation d'une mission payée refusée", r.status === 403, r.error);
@@ -409,10 +413,10 @@ async function confirmedBooking(client, comp, dayN, extra = {}) {
   check("X16", "Déclaration transmise impossible à supprimer (conservation légale)", !!delErr);
   r = await TX({ action: "generate", correction: true });
   check("X17", "Correction sans changement refusée", r.status === 409, r.error);
-  await comp.c.from("companions").update({ nif: "9876543210987" }).eq("id", comp.id);
+  await comp.c.from("companions").update({ nif: "2876543210987" }).eq("id", comp.id);
   r = await TX({ action: "generate", correction: true });
   const x2 = r.xml ?? "";
-  check("X18", "Déclaration corrective : DPI402, OECD2 et référence à l'enregistrement d'origine", x2.includes("DPI402") && x2.includes("<stf:DocTypeIndic>OECD2</stf:DocTypeIndic>") && x2.includes("<stf:CorrDocRefId>") && x2.includes("9876543210987"), r.error);
+  check("X18", "Déclaration corrective : DPI402, OECD2 et référence à l'enregistrement d'origine", x2.includes("DPI402") && x2.includes("<stf:DocTypeIndic>OECD2</stf:DocTypeIndic>") && x2.includes("<stf:CorrDocRefId>") && x2.includes("2876543210987"), r.error);
   r = await TX({ action: "export" });
   check("X19", "Récapitulatif tableur (compatible Excel)", r.csv?.startsWith("﻿Année;Nom;Prénom") && r.csv.split("\r\n").length >= 2);
   const { data: mt } = await comp.c.rpc("my_tax_year", { p_year: Y });
@@ -420,6 +424,91 @@ async function confirmedBooking(client, comp, dayN, extra = {}) {
   check("X20", "Mes documents fiscaux : revenus mensuels de l'accompagnateur, rien pour un client", (mt ?? []).length >= 1 && (mt ?? []).every((x) => x.missions > 0) && (mtOther ?? []).length === 0);
   const { data: leakDecl } = await comp.c.from("tax_declarations").select("id");
   check("X21", "Déclarations invisibles pour les accompagnateurs", (leakDecl ?? []).length === 0);
+
+  // ---------- Fiscalité : compléments (ventilation, statuts, documents officiels, ZIP) ----------
+  r = await TX({ action: "overview" });
+  const bd = (r.breakdown ?? []).find((x) => x.companion_id === comp.id) ?? {};
+  check("X22", "Ventilation : payé client, frais client, commission, net, remboursements, taxes", Number(bd.client_paid) > Number(bd.gross) && Number(bd.client_fees) > 0 && Number(bd.commission) > 0 && Math.abs(Number(bd.declarable) - (Number(bd.gross) - Number(bd.commission) + Number(bd.tips))) < 0.01 && Number(bd.taxes) === 0 && !!r.stage,
+    `payé ${bd.client_paid} €, frais client ${bd.client_fees} €, commission ${bd.commission} €, net ${bd.net_paid} €, déclarable ${bd.declarable} €, remboursements ${bd.refunds} €, étape « ${r.stage} »`);
+  r = await TX({ action: "receipt", id: d1.id, receipt_ref: "AR-1", status: "acceptee" });
+  check("X23", "« Acceptée » refusé sans document officiel importé", r.status === 409, r.error);
+  const rec1 = (await svc.from("tax_seller_records").select("doc_ref_id").eq("declaration_id", d1.id).eq("companion_id", comp.id).single()).data;
+  const sm = (orig, status, err = "") => btoa(unescape(encodeURIComponent(`<?xml version="1.0" encoding="UTF-8"?><dpism:DPI_StatusMessage xmlns:dpism="urn:oecd:ties:dpism:v1"><dpism:MessageSpec><dpism:MessageRefId>FR_SM_1</dpism:MessageRefId></dpism:MessageSpec><dpism:DPIStatusMessage><dpism:OriginalMessage><dpism:OriginalMessageRefID>${orig}</dpism:OriginalMessageRefID></dpism:OriginalMessage><dpism:ValidationErrors>${err}</dpism:ValidationErrors><dpism:ValidationResult><dpism:Status>${status}</dpism:Status></dpism:ValidationResult></dpism:DPIStatusMessage></dpism:DPI_StatusMessage>`)));
+  r = await TX({ action: "import_receipt", id: d1.id, file_name: "cr.xml", content_b64: sm("OP_AUTRE_123", "Accepted") });
+  check("X24", "Compte rendu d'une autre déclaration refusé", r.status === 409, r.error);
+  r = await TX({ action: "import_receipt", id: d1.id, file_name: "cr.xml", content_b64: sm(d1.message_ref_id, "Accepted", `<dpism:RecordError><dpism:Code>80010</dpism:Code><dpism:Details>TIN invalide</dpism:Details><dpism:DocRefIDInError>${rec1?.doc_ref_id}</dpism:DocRefIDInError></dpism:RecordError>`) });
+  const d1b = await row("tax_declarations", d1.id);
+  check("X25", "Compte rendu importé : erreur signalée → déclaration « à corriger »", r.ok && d1b.status === "a_corriger" && d1b.errors?.[0]?.doc_ref_id === rec1?.doc_ref_id && (await TX({ action: "overview" })).stage === "a_corriger", `${r.official}, ${r.errors?.length} erreur(s)`);
+  r = await TX({ action: "generate", correction: true });
+  const x3 = r.xml ?? "", d3 = r.declaration;
+  check("X26", "Correction de l'erreur signalée : enregistrement renvoyé (OECD2) avec la référence d'origine", x3.includes("<stf:DocTypeIndic>OECD2</stf:DocTypeIndic>") && x3.includes(`<stf:CorrDocRefId>${rec1?.doc_ref_id}</stf:CorrDocRefId>`), r.error);
+  await TX({ action: "validate", id: d3?.id });
+  const pdf = btoa("%PDF-1.4\n1 0 obj<<>>endobj\ntrailer<<>>\n%%EOF");
+  r = await TX({ action: "import_receipt", id: d3?.id, file_name: "accuse.pdf", content_b64: pdf });
+  check("X27", "Accusé PDF : statut officiel obligatoire", r.status === 400, r.error);
+  r = await TX({ action: "import_receipt", id: d3?.id, file_name: "accuse.pdf", content_b64: pdf, official_status: "accepte", reference: "CR-DGFIP-2027-42" });
+  check("X28", "Corrective acceptée sur document officiel : erreurs de la déclaration d'origine soldées", r.ok && (await row("tax_declarations", d3?.id)).status === "acceptee" && (await row("tax_declarations", d1.id)).status === "acceptee", r.error);
+  r = await TX({ action: "overview" });
+  const { data: rcpLeak } = await comp.c.from("tax_receipts").select("id");
+  check("X29", "Historique des accusés conservé, invisible pour les accompagnateurs", (r.receipts ?? []).length === 2 && (rcpLeak ?? []).length === 0 && !!(await svc.from("tax_receipts").delete().eq("declaration_id", d1.id)).error);
+  r = await TX({ action: "certificates_bundle" });
+  check("X30", "Téléchargement groupé des attestations (données pour le ZIP)", (r.certificates ?? []).length >= 1 && r.certificates.every((c) => c.data && c.year === Y) && r.certificates.some((c) => c.nif === "2876543210987"));
+  const { data: iss } = await comp.c.rpc("tax_profile_issues", { p_companion: comp.id });
+  const { data: issOther } = await client.c.rpc("tax_profile_issues", { p_companion: comp.id });
+  check("X31", "Informations manquantes ou incorrectes : visibles par l'accompagnateur seul", Array.isArray(iss) && !iss.some((x) => x.blocking) && (issOther ?? []).length === 0, JSON.stringify(iss));
+  const { data: myb } = await comp.c.rpc("my_tax_breakdown", { p_year: Y });
+  check("X32", "Ma ventilation fiscale (accompagnateur)", (myb ?? []).length === 1 && Number(myb[0].declarable) > 0 && myb[0].client_fees === undefined);
+
+  // ---------- Assurance responsabilité civile ----------
+  const comp3 = await user("ines@test.fr", { ...base, first_name: "Inès", role: "companion", non_circumvention: true }, { identity_verified: true });
+  await svc.from("companions").update({ verified: true, video_interview_ok: true, categories: ["shopping"], hour_from: 0, hour_to: 24, stripe_account_id: "acct_test_ines", payouts_enabled: true }).eq("id", comp3.id);
+  const IB = (n) => call(client2, "create-booking", { companion_id: comp3.id, category: "shopping", starts_at: day(n), hours: 2, place: "Jardin du Luxembourg, Paris" });
+  r = await IB(5);
+  check("Y01", "Accompagnateur sans assurance : nouvelle réservation refusée", r.status === 409 && /assurance/i.test(r.error ?? ""), r.error);
+  const pdfBytes = new Blob([new TextEncoder().encode("%PDF-1.4 attestation test")], { type: "application/pdf" });
+  const up1 = await comp3.c.storage.from("insurance").upload(`${comp3.id}/rc-1.pdf`, pdfBytes);
+  const upX = await comp3.c.storage.from("insurance").upload(`${comp.id}/pirate.pdf`, pdfBytes);
+  const upExe = await comp3.c.storage.from("insurance").upload(`${comp3.id}/x.exe`, new Blob(["MZ"], { type: "application/x-msdownload" }));
+  check("Y02", "Attestation déposée dans l'espace privé ; dossier d'un autre et format interdit refusés", !up1.error && !!upX.error && !!upExe.error, up1.error?.message);
+  const insRow = (path, extra = {}) => ({ companion_id: comp3.id, insurer: "MAIF", policy_number: "RC-778899", starts_on: at(-10 * 24 * H).slice(0, 10), ends_on: at(200 * 24 * H).slice(0, 10), doc_path: path, covers_paid_activity: true, ...extra });
+  const { data: i1, error: iErr } = await comp3.c.from("companion_insurances").insert(insRow(`${comp3.id}/rc-1.pdf`)).select().single();
+  check("Y03", "Informations du contrat enregistrées : « en attente de validation »", !iErr && i1?.status === "en_attente", iErr?.message);
+  const { error: selfVal } = await comp3.c.from("companion_insurances").update({ status: "validee" }).eq("id", i1?.id);
+  const dlOther = await comp.c.storage.from("insurance").download(`${comp3.id}/rc-1.pdf`), dlClient = await client.c.storage.from("insurance").download(`${comp3.id}/rc-1.pdf`);
+  check("Y04", "Auto-validation impossible ; justificatif illisible par un autre membre", !!selfVal && !!dlOther.error && !!dlClient.error);
+  r = await call(comp3, "insurance", { action: "list" });
+  check("Y05", "Gestion des assurances interdite hors administrateurs", r.status === 403);
+  r = await call(adm, "insurance", { action: "list", filter: "attente", q: "inès" });
+  check("Y06", "Liste « en attente », recherche et compteurs", (r.rows ?? []).length === 1 && r.rows[0].state === "en_attente" && r.counts?.attente >= 1 && r.uninsured?.some((u) => u.companion_id === comp3.id), JSON.stringify(r.counts));
+  r = await call(adm, "insurance", { action: "doc", id: i1?.id });
+  check("Y07", "Consultation du justificatif (lien temporaire) journalisée", !!r.url && (await count("insurance_reviews", { insurance_id: i1?.id, decision: "consultation" })) === 1);
+  r = await call(adm, "insurance", { action: "review", id: i1?.id, approve: false });
+  const r2 = await call(adm, "insurance", { action: "review", id: i1?.id, approve: false, reason: "Activité rémunérée non mentionnée" });
+  check("Y08", "Refus : motif obligatoire, accompagnateur informé du motif", r.status === 400 && r2.ok && (await row("companion_insurances", i1?.id)).status === "refusee" && (await svc.from("notifications").select("body").eq("user_id", comp3.id).eq("kind", "assurance")).data?.some((n) => n.body.includes("non mentionnée")));
+  r = await IB(5);
+  check("Y09", "Attestation refusée : réservations toujours bloquées", r.status === 409);
+  await comp3.c.storage.from("insurance").upload(`${comp3.id}/rc-2.pdf`, pdfBytes);
+  const { data: i2 } = await comp3.c.from("companion_insurances").insert(insRow(`${comp3.id}/rc-2.pdf`, { ends_on: at(60 * 24 * H).slice(0, 10) })).select().single();
+  r = await call(adm, "insurance", { action: "review", id: i2?.id, approve: true });
+  const again = await call(adm, "insurance", { action: "review", id: i2?.id, approve: true });
+  const ok3 = await IB(5);
+  check("Y10", "Nouvelle attestation validée : réservations réactivées", r.ok && again.status === 409 && !!ok3.booking, ok3.error);
+  r = await IB(70);
+  check("Y11", "Prestation après la date d'expiration du contrat : refusée", r.status === 409, r.error);
+  await svc.from("companion_insurances").update({ ends_on: at(30 * 24 * H).slice(0, 10) }).eq("id", i2?.id);
+  await internal("sweeper", {}); await internal("sweeper", {});
+  const rem = (await svc.from("notifications").select("body").eq("user_id", comp3.id).eq("kind", "assurance")).data?.filter((n) => n.body.includes("expire")) ?? [];
+  check("Y12", "Rappel avant expiration envoyé une seule fois", rem.length === 1 && (await count("insurance_reminders", { insurance_id: i2?.id })) === 1, rem[0]?.body);
+  await svc.from("companion_insurances").update({ ends_on: at(-1 * 24 * H).slice(0, 10) }).eq("id", i2?.id);
+  await internal("sweeper", {});
+  const exp = await row("companion_insurances", i2?.id);
+  const adminMsg = (await svc.from("notifications").select("body").eq("user_id", adm.id).eq("kind", "assurance")).data ?? [];
+  check("Y13", "Expiration : statut « expirée », accompagnateur prévenu, équipe informée des réservations affectées", exp.status === "expiree" && adminMsg.some((n) => n.body.includes(ok3.booking?.ref)), adminMsg.map((n) => n.body).join(" | "));
+  r = await IB(8);
+  const aff = await call(adm, "insurance", { action: "list", filter: "expirees" });
+  check("Y14", "Assurance expirée : nouvelle réservation refusée, réservation existante signalée", r.status === 409 && (aff.affected ?? []).some((b) => b.booking_id === ok3.booking?.id) && aff.rows.every((x) => x.state === "expiree"));
+  r = await call(comp3, "account", { action: "export" });
+  check("Y15", "Export RGPD : contrats d'assurance inclus", (r.insurances ?? []).length === 2);
 
   // ---------- Base de données (accès direct par l'API) ----------
   const { data: other } = await client2.c.from("bookings").select("id").eq("client_id", client.id);
