@@ -85,7 +85,48 @@ serve(async (req) => {
       inc("rappels_fiscaux");
     }
   }
-  // 11. Nettoyage des compteurs de tentatives de plus de 7 jours
+  // 11. Assurance RC des accompagnateurs : rappels J-30, J-15, J-7, J-1 ; expiration ; réservations à venir non couvertes
+  const today = new Date().toLocaleDateString("en-CA", { timeZone: "Europe/Paris" });
+  const { data: ins } = await admin.from("companion_insurances").select("id, companion_id, insurer, ends_on").eq("status", "validee");
+  for (const i of ins ?? []) {
+    const left = Math.round((Date.parse(i.ends_on) - Date.parse(today)) / 86_400_000);
+    if (left < 0) {                                         // expirée : plus de nouvelles réservations
+      const { data: x } = await admin.from("companion_insurances").update({ status: "expiree" }).eq("id", i.id).eq("status", "validee").select("id");
+      if (!x?.length) continue;
+      await admin.from("insurance_reviews").insert({ insurance_id: i.id, decision: "expiree" });
+      const renewed = (ins ?? []).some((o) => o.companion_id === i.companion_id && o.id !== i.id && o.ends_on >= today);
+      if (renewed) continue;
+      await notify(i.companion_id, "Votre attestation d'assurance a expiré : vous ne pouvez plus recevoir de nouvelles réservations. Déposez la nouvelle attestation dans Profil → Mon assurance.", null, "assurance");
+      const { data: aff } = await admin.rpc("insurance_affected_bookings");
+      const mine = (aff ?? []).filter((b: any) => b.companion_id === i.companion_id);
+      await notifyAdmins(`Assurance expirée pour un accompagnateur${mine.length ? ` : ${mine.length} réservation(s) à venir non couverte(s) (${mine.map((b: any) => b.ref).join(", ")})` : ""}.`, null, "assurance");
+      inc("assurances_expirees");
+      continue;
+    }
+    const step = [30, 15, 7, 1].find((d) => left <= d && left > ({ 30: 15, 15: 7, 7: 1, 1: -1 } as Record<number, number>)[d]);
+    if (step === undefined) continue;
+    const later = (ins ?? []).some((o) => o.companion_id === i.companion_id && o.ends_on > i.ends_on);
+    if (later) continue;                                    // contrat déjà renouvelé et validé
+    const { error } = await admin.from("insurance_reminders").insert({ insurance_id: i.id, days: step });
+    if (error) continue;                                    // rappel déjà envoyé
+    await notify(i.companion_id, `Votre assurance responsabilité civile expire ${left <= 0 ? "aujourd’hui" : left === 1 ? "demain" : `dans ${left} jours`} (${i.ends_on.split("-").reverse().join("/")}). Déposez votre nouvelle attestation dans Profil → Mon assurance pour continuer à recevoir des réservations.`, null, "assurance");
+    inc("rappels_assurance");
+  }
+  // 12. Informations fiscales manquantes ou incorrectes : rappel hebdomadaire aux accompagnateurs ayant perçu des revenus cette année
+  const parisNow = new Date(new Date().toLocaleString("en-US", { timeZone: "Europe/Paris" }));
+  if (parisNow.getDay() === 1 && parisNow.getHours() === 10 && parisNow.getMinutes() < 5) {
+    const { data: S } = await admin.rpc("tax_year_summary", { p_year: parisNow.getFullYear() });
+    for (const s of S ?? []) {
+      const { data: iss } = await admin.rpc("tax_profile_issues", { p_companion: s.companion_id });
+      const blocking = (iss ?? []).filter((x: any) => x.blocking);
+      if (!blocking.length) continue;
+      const { count } = await admin.from("notifications").select("id", { count: "exact", head: true }).eq("user_id", s.companion_id).eq("kind", "fiscal").gt("created_at", iso(-6 * 24 * H));
+      if (count) continue;
+      await notify(s.companion_id, `Informations fiscales à compléter ou corriger (${blocking.map((x: any) => x.field).join(", ")}) : Revenus → Mes documents fiscaux.`, null, "fiscal");
+      inc("rappels_infos_fiscales");
+    }
+  }
+  // 13. Nettoyage des compteurs de tentatives de plus de 7 jours
   await admin.from("rate_events").delete().lt("created_at", iso(-7 * 24 * H));
   return json({ ok: true, ...n });
 });

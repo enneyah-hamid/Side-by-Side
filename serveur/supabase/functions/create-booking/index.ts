@@ -46,6 +46,9 @@ serve(async (req) => {
             beneficiary_needs: Array.isArray(beneficiary.needs) ? beneficiary.needs.slice(0, 6).map((x: unknown) => String(x).slice(0, 40)) : [],
             beneficiary_info: String(beneficiary.info ?? "").slice(0, 400), beneficiary_consent_at: new Date().toISOString() };
   }
+  // Assurance responsabilité civile de l'accompagnateur validée et valable pendant toute la prestation
+  const { data: insured } = await admin.rpc("companion_insured", { p_companion: companion_id, p_at: start.toISOString(), p_hours: h });
+  if (insured === false) throw new HttpError(409, `${c.profiles?.first_name ?? "Cet accompagnateur"} ne peut pas recevoir de réservation pour le moment (attestation d'assurance à jour en attente).`);
   const p = price(Number(c.hourly_rate), h, Math.round(an * 100) / 100, s, !!me.privilege_since);
   // La base refuse tout chevauchement (contrainte d'exclusion), même pour deux demandes simultanées
   const { data: b, error } = await admin.from("bookings").insert({
@@ -53,7 +56,7 @@ serve(async (req) => {
     place: String(place).trim(), language: language ? String(language).slice(0, 30) : null, note: note ? String(note) : null,
     experience_id: experience_id ?? null, status: "en_attente", buffer_min: c.travel_buffer_min ?? 0, ...p, ...ben,
   }).select().single();
-  if (error) { if (error.code === "23P01") throw new HttpError(409, "Créneau déjà réservé"); throw error; }
+  if (error) { if (error.code === "23P01") throw new HttpError(409, "Créneau déjà réservé"); if (error.code === "P0010") throw new HttpError(409, "Accompagnateur momentanément indisponible (assurance à jour en attente)"); throw error; }
   await event(b.id, "en_attente", me.id, "demande créée");
   await notify(companion_id, `Nouvelle demande ${b.ref} de ${me.first_name}.`, b.id, "reservation");
   return json({ booking: b });
