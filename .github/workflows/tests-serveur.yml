@@ -34,6 +34,7 @@ jobs:
           STRIPE_WEBHOOK_SECRET=whsec_test_integration_side_by_side
           INTERNAL_KEY=cle-interne-de-test-tres-longue-123456
           APP_ORIGIN=https://sidebyside.example
+          TAX_ALLOW_CURRENT_YEAR=1
           EOT
           sed -i 's/^ *//' tests/.env.functions
           cd serveur && (supabase functions serve --env-file ../tests/.env.functions --no-verify-jwt > ../tests/functions.log 2>&1 &)
@@ -46,6 +47,13 @@ jobs:
           npm init -y >/dev/null && npm i --silent @supabase/supabase-js@2.45.4 stripe@14.25.0
           SB_URL=$API_URL SB_ANON=$ANON_KEY SB_SERVICE=$SERVICE_ROLE_KEY INTERNAL_KEY=cle-interne-de-test-tres-longue-123456 STRIPE_WEBHOOK_SECRET=whsec_test_integration_side_by_side \
             node integration.mjs | tee resultats.txt
+      - name: Validation du XML DAC7 contre le schéma officiel OCDE DPI v1.0
+        if: always()
+        run: |
+          sudo apt-get install -y -qq libxml2-utils >/dev/null
+          mkdir -p xsd && cd xsd
+          for f in dpixml_v1.0.xsd oecddpitypes_v1.0.xsd isodpitypes_v1.0.xsd; do curl -sSfL -o $f https://www.vero.fi/contentassets/c3dcde0af9374153aada7e6c63f4cfcc/$f; done
+          xmllint --noout --schema dpixml_v1.0.xsd ../tests/dac7-exemple-ocde.xml 2>&1 | tee ../tests/resultats-xsd.txt
       - uses: denoland/setup-deno@v2
         if: always()
         with: { deno-version: v2.x }
@@ -65,4 +73,8 @@ jobs:
           tail -60 tests/functions.log | sed 's/^/    /' >> $GITHUB_STEP_SUMMARY 2>/dev/null || true
       - uses: actions/upload-artifact@v4
         if: always()
-        with: { name: resultats-tests-serveur, path: "tests/resultats*.*" }
+        with:
+          name: resultats-tests-serveur
+          path: |
+            tests/resultats*.*
+            tests/dac7-exemple-*.xml

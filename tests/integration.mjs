@@ -368,6 +368,59 @@ async function confirmedBooking(client, comp, dayN, extra = {}) {
   r = await call(priv, "account", { action: "delete", confirm: "SUPPRIMER" });
   check("H24", "Suppression de compte : abonnement Privilège résilié", r.ok && (await row("profiles", priv.id)).privilege_since === null);
 
+
+  // ---------- Fiscalité DAC7 ----------
+  const Y = new Date().getFullYear(), TX = (body, u = adm) => call(u, "tax-admin", { year: Y, ...body });
+  r = await TX({ action: "overview" }, client);
+  check("X01", "Espace fiscal DAC7 interdit à un client", r.status === 403);
+  r = await TX({ action: "overview" });
+  check("X02", "Tableau de bord DAC7 : accompagnateurs concernés et montants", r.status === 200 && r.concerned >= 1 && r.total_consideration > 0 && r.companions_total >= r.concerned, `${r.concerned}/${r.companions_total} accompagnateur(s), contrepartie ${r.total_consideration} €, commissions ${r.total_fees} €`);
+  check("X03", "Informations manquantes détectées (SIREN de Zyntell, lieu de naissance…)", r.blocking > 0 && r.issues.some((i) => i.field === "SIREN"), `${r.blocking} point(s) bloquant(s)`);
+  r = await TX({ action: "generate" });
+  check("X04", "Déclaration refusée tant que des informations obligatoires manquent", r.status === 409, r.error);
+  const { error: fErr } = await comp.c.from("companions").update({ nif: "1234567890123", birth_city: "Rouen", birth_country: "FR", tax_country: "FR", postal_address: "8 rue de Bretagne, 75003 Paris" }).eq("id", comp.id);
+  check("X05", "L'accompagnateur complète lui-même ses informations fiscales", !fErr, fErr?.message);
+  await svc.from("settings").update({ operator_siren: "123456789" }).eq("id", 1);
+  r = await TX({ action: "verify" });
+  check("X06", "Vérification des informations : plus aucun point bloquant", r.issues && !r.issues.some((i) => i.blocking), JSON.stringify(r.issues?.filter((i) => i.blocking)));
+  r = await TX({ action: "generate" });
+  const xml1 = r.xml ?? "";
+  check("X07", "Déclaration XML générée (format DPI-DAC7 DGFiP)", r.status === 200 && xml1.includes(`<dpi:MessageRefId>OP_${Y}_123456789_`) && xml1.includes("<dpi:MessageTypeIndic>DPI401</dpi:MessageTypeIndic>") && xml1.includes("<dpi:PersonalServices>") && xml1.includes("<dpi:TaxesQ1") && xml1.includes(`<dpi:ReportingPeriod>${Y}-12-31</dpi:ReportingPeriod>`), r.error ?? `${xml1.length} caractères`);
+  check("X08", "Montants en euros entiers, contrepartie nette après commission", !/<dpi:(ConsQ|FeesQ)\d currCode="EUR">\d+\.\d/.test(xml1) && /<dpi:TIN issuedBy="FR">1234567890123<\/dpi:TIN>/.test(xml1));
+  await import("node:fs").then((fs) => { fs.writeFileSync("dac7-exemple-dgfip.xml", xml1); fs.writeFileSync("dac7-exemple-ocde.xml", xml1.replace(/TaxesQ/g, "TaxQ")); });
+  const d1 = r.declaration;
+  r = await TX({ action: "certificates", publish: true });
+  check("X09", "Attestations refusées avant la validation de la déclaration", r.status === 409, r.error);
+  r = await TX({ action: "validate", id: d1.id });
+  check("X10", "Validation de la déclaration par l'administrateur", r.ok && !!r.portal);
+  r = await TX({ action: "generate" });
+  check("X11", "Seconde déclaration initiale pour la même année refusée (pas de doublon)", r.status === 409, r.error);
+  r = await TX({ action: "download", id: d1.id });
+  check("X12", "Téléchargement du XML archivé, intégrité vérifiée et journalisée", r.xml === xml1 && (await count("audit_log", { actor_id: adm.id })) > 0);
+  r = await TX({ action: "certificates", publish: true });
+  const { data: myCert } = await comp.c.from("tax_certificates").select("year, data, published_at");
+  const { data: otherCert } = await client.c.from("tax_certificates").select("id");
+  check("X13", "Attestations générées et envoyées : l'accompagnateur voit la sienne, personne d'autre", r.ok && (myCert ?? []).length === 1 && (otherCert ?? []).length === 0 && (await count("notifications", { user_id: comp.id, kind: "fiscal" })) >= 1, `${r.created} attestation(s)`);
+  r = await TX({ action: "certificates", publish: true });
+  check("X14", "Renvoi des attestations : aucun doublon", r.ok && r.created === 0);
+  r = await TX({ action: "receipt", id: d1.id, receipt_ref: "AR-2027-000123" });
+  check("X15", "Accusé de réception enregistré", r.ok && (await row("tax_declarations", d1.id)).status === "transmise");
+  const { error: delErr } = await svc.from("tax_declarations").delete().eq("id", d1.id);
+  check("X16", "Déclaration transmise impossible à supprimer (conservation légale)", !!delErr);
+  r = await TX({ action: "generate", correction: true });
+  check("X17", "Correction sans changement refusée", r.status === 409, r.error);
+  await comp.c.from("companions").update({ nif: "9876543210987" }).eq("id", comp.id);
+  r = await TX({ action: "generate", correction: true });
+  const x2 = r.xml ?? "";
+  check("X18", "Déclaration corrective : DPI402, OECD2 et référence à l'enregistrement d'origine", x2.includes("DPI402") && x2.includes("<stf:DocTypeIndic>OECD2</stf:DocTypeIndic>") && x2.includes("<stf:CorrDocRefId>") && x2.includes("9876543210987"), r.error);
+  r = await TX({ action: "export" });
+  check("X19", "Récapitulatif tableur (compatible Excel)", r.csv?.startsWith("﻿Année;Nom;Prénom") && r.csv.split("\r\n").length >= 2);
+  const { data: mt } = await comp.c.rpc("my_tax_year", { p_year: Y });
+  const { data: mtOther } = await client.c.rpc("my_tax_year", { p_year: Y });
+  check("X20", "Mes documents fiscaux : revenus mensuels de l'accompagnateur, rien pour un client", (mt ?? []).length >= 1 && (mt ?? []).every((x) => x.missions > 0) && (mtOther ?? []).length === 0);
+  const { data: leakDecl } = await comp.c.from("tax_declarations").select("id");
+  check("X21", "Déclarations invisibles pour les accompagnateurs", (leakDecl ?? []).length === 0);
+
   // ---------- Base de données (accès direct par l'API) ----------
   const { data: other } = await client2.c.from("bookings").select("id").eq("client_id", client.id);
   check("B01", "Un membre ne voit pas les réservations des autres", (other ?? []).length === 0);

@@ -69,7 +69,23 @@ serve(async (req) => {
   // 9. Avis à l'aveugle publiés après 14 jours même si l'autre partie n'a pas répondu
   const { data: rv } = await admin.from("reviews").update({ status: "moderation" }).eq("status", "aveugle").lt("created_at", iso(-14 * 24 * H)).select("id");
   n.avis_liberes = rv?.length ?? 0;
-  // 10. Nettoyage des compteurs de tentatives de plus de 7 jours
+  // 10. Fiscalité DAC7 : consolidation au 1er janvier, contrôles et rappels avant le 31 janvier (aucune transmission automatique)
+  const paris = new Date(new Date().toLocaleString("en-US", { timeZone: "Europe/Paris" }));
+  if (paris.getMonth() === 0) {
+    const y = paris.getFullYear() - 1, d = paris.getDate(), tag = `fiscal-${y}-${paris.toISOString().slice(0, 10)}`;
+    const { count: done } = await admin.from("audit_log").select("id", { count: "exact", head: true }).eq("action", tag);
+    if (!done && [1, 8, 15, 22, 27, 29, 30, 31].includes(d)) {
+      await admin.from("audit_log").insert({ action: tag, ref: `DAC7 ${y}` });
+      const { data: S } = await admin.rpc("tax_year_summary", { p_year: y });
+      const { data: decl } = await admin.from("tax_declarations").select("status").eq("year", y).in("status", ["transmise", "acceptee"]).limit(1);
+      const missing = (S ?? []).filter((s: any) => !s.birth_date || !s.birth_city || !s.postal_address || !s.nif);
+      if (d === 1 || d === 8 || d === 15) for (const s of missing) await notify(s.companion_id, `Informations fiscales ${y} incomplètes : complétez-les dans Revenus → Mes documents fiscaux.`, null, "fiscal");
+      if (!decl?.length) await notifyAdmins(d === 1 ? `Revenus ${y} consolidés : ${(S ?? []).length} accompagnateur(s) à déclarer, ${missing.length} dossier(s) incomplet(s). Déclaration DAC7 à transmettre avant le 31 janvier.`
+        : `Rappel DAC7 ${y} : déclaration non transmise, date limite le 31 janvier (${(S ?? []).length} accompagnateur(s), ${missing.length} dossier(s) incomplet(s)).`, null, "fiscal");
+      inc("rappels_fiscaux");
+    }
+  }
+  // 11. Nettoyage des compteurs de tentatives de plus de 7 jours
   await admin.from("rate_events").delete().lt("created_at", iso(-7 * 24 * H));
   return json({ ok: true, ...n });
 });
