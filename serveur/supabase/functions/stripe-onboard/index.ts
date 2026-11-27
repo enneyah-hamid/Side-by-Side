@@ -19,7 +19,7 @@ serve(async (req) => {
       accountId = account.id;
       await admin.from("companions").update({ stripe_account_id: accountId }).eq("id", me.id);
     }
-    const origin = Deno.env.get("APP_ORIGIN") ?? "https://sidebyside.app";
+    const origin = (Deno.env.get("APP_ORIGIN") ?? "").split(",").map((s) => s.trim()).filter(Boolean)[0] ?? "https://sidebyside.app";   // première adresse si plusieurs
     const link = await stripe.accountLinks.create({
       account: accountId, type: "account_onboarding",
       refresh_url: `${origin}/compagnon/paiements?retry=1`, return_url: `${origin}/compagnon/paiements?ok=1`,

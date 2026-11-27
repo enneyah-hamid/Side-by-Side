@@ -15,8 +15,9 @@ export const stripeReady = () => !!Deno.env.get("STRIPE_SECRET_KEY");
 export const admin = createClient(Deno.env.get("SUPABASE_URL")!, Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!);
 
 // Origines autorisées : l'application Android (https://localhost), iOS (capacitor://localhost)
-// et le site web indiqué dans APP_ORIGIN (plusieurs adresses séparées par des virgules).
-const ORIGINS = new Set(["https://localhost", "capacitor://localhost", "http://localhost",
+// l'espace de gestion (https://sidebyside.zyntell.fr/gestion) et le site web indiqué dans APP_ORIGIN
+// (plusieurs adresses séparées par des virgules).
+const ORIGINS = new Set(["https://localhost", "capacitor://localhost", "http://localhost", "https://sidebyside.zyntell.fr",
   ...(Deno.env.get("APP_ORIGIN") ?? "").split(",").map((s) => s.trim()).filter(Boolean)]);
 export function corsHeaders(req: Request): Record<string, string> {
   const o = req.headers.get("Origin") ?? "";
