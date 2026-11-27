@@ -32,7 +32,7 @@ jobs:
           for f in supabase/functions/*/; do
             n=$(basename "$f"); [ "$n" = "_shared" ] && continue
             case "$n" in stripe-webhook|release-payout|sweeper|monthly-invoice|admin-auth) flag="--no-verify-jwt";; *) flag="";; esac
-            echo "→ $n $flag"; npx -y supabase@2 functions deploy "$n" --project-ref "$PROJECT" --use-api $flag
+            echo "→ $n $flag"; for t in 1 2 3; do npx -y supabase@2 functions deploy "$n" --project-ref "$PROJECT" --use-api $flag && break; [ $t = 3 ] && exit 1; echo "Nouvel essai dans 20 s (erreur passagère)…"; sleep 20; done
           done
       - name: Clé d'envoi des e-mails pour les fonctions serveur (si le secret RESEND_API_KEY existe)
         working-directory: serveur
