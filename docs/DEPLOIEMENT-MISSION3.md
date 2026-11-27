@@ -5,7 +5,7 @@ Ce guide explique comment mettre en service la version 3.0 :
 - l'application mobile 3.0, avec l'assistance intégrée et sans administration ;
 - les migrations 0010 à 0013.
 
-**Les étapes 1 à 3 ne sont pas encore faites.** Elles attendent votre autorisation écrite. Claude les réalise pour vous une fois l'autorisation donnée. Vous n'avez rien à taper dans Supabase, sauf à l'étape 4.
+**État au 27/11/2026 à 18 h 00 : étapes 1, 2 et 3 terminées.** Sauvegarde faite. Migrations 0010 à 0013 appliquées, avec un schéma identique à la copie testée. Les 19 fonctions serveur sont déployées. Restent les étapes 4 à 8.
 
 L'ordre ci-dessous est obligatoire : la base de données d'abord, le code ensuite.
 
