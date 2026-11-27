@@ -8,13 +8,14 @@ const L = (lang?: string | null): Lang => (LANGS as readonly string[]).includes(
 // Catégories de préférences (Compte → Notifications) et objets des e-mails
 export const KIND_PREF: Record<string, "resa" | "msg" | "rappel"> = {
   reservation: "resa", annulation: "resa", paiement: "resa", prolongation: "resa", fin: "resa", versement: "resa", litige: "resa",
-  message: "msg", rappel: "rappel", assurance: "resa", fiscal: "resa",
+  message: "msg", rappel: "rappel", assurance: "resa", fiscal: "resa", assistance: "msg",
 };
 const SUBJ: Record<string, Record<Lang, string>> = {
   reservation: { fr: "Votre réservation Side by Side", en: "Your Side by Side booking", es: "Su reserva Side by Side", it: "La sua prenotazione Side by Side", de: "Ihre Side by Side Buchung", pt: "A sua reserva Side by Side", ar: "حجزك على Side by Side" },
   annulation: { fr: "Annulation d'une réservation", en: "Booking cancelled", es: "Reserva cancelada", it: "Prenotazione annullata", de: "Buchung storniert", pt: "Reserva cancelada", ar: "إلغاء حجز" },
   rappel: { fr: "Rappel : votre rendez-vous Side by Side", en: "Reminder: your Side by Side appointment", es: "Recordatorio: su cita Side by Side", it: "Promemoria: il suo appuntamento Side by Side", de: "Erinnerung: Ihr Side by Side Termin", pt: "Lembrete: o seu encontro Side by Side", ar: "تذكير: موعدك على Side by Side" },
   message: { fr: "Nouveau message sur Side by Side", en: "New message on Side by Side", es: "Nuevo mensaje en Side by Side", it: "Nuovo messaggio su Side by Side", de: "Neue Nachricht auf Side by Side", pt: "Nova mensagem no Side by Side", ar: "رسالة جديدة على Side by Side" },
+  assistance: { fr: "Réponse de l'assistance Side by Side", en: "Reply from Side by Side support", es: "Respuesta del soporte de Side by Side", it: "Risposta dell'assistenza Side by Side", de: "Antwort vom Side by Side Support", pt: "Resposta do apoio Side by Side", ar: "رد من دعم Side by Side" },
   default: { fr: "Side by Side : nouvelle notification", en: "Side by Side: new notification", es: "Side by Side: nueva notificación", it: "Side by Side: nuova notifica", de: "Side by Side: neue Benachrichtigung", pt: "Side by Side: nova notificação", ar: "Side by Side: إشعار جديد" },
 };
 const UI: Record<Lang, { open: string; why: string; pref: string; hello: string }> = {

@@ -59,6 +59,27 @@ function totp(secret) {
   const h = crypto.createHmac("sha1", key).update(ctr).digest(), o = h[19] & 15;
   return String(((h.readUInt32BE(o) & 0x7fffffff) % 1e6)).padStart(6, "0");
 }
+// Espace de gestion : connexion par la fonction admin-auth (mot de passe puis code TOTP), comme le fait /gestion
+let lastWin = 0;
+async function code(secret) { let w = Math.floor(Date.now() / 30000); if (w <= lastWin) { await sleep((lastWin + 1) * 30000 - Date.now() + 300); w = Math.floor(Date.now() / 30000); } lastWin = w; return totp(secret); }
+async function authFn(body, token) {
+  const r = await fetch(`${URL}/functions/v1/admin-auth`, { method: "POST", headers: { "Content-Type": "application/json", apikey: ANON, Authorization: `Bearer ${token ?? ANON}`, "User-Agent": "integration-test" }, body: JSON.stringify(body) });
+  let j = {}; try { j = await r.json(); } catch (_) {}
+  return { status: r.status, ...j };
+}
+async function adminLogin(u, secret, factorId, password = "Test-Passw0rd!") {
+  const l = await authFn({ action: "login", email: u.email, password });
+  if (!l.session) return l;
+  const v = await authFn({ action: "mfa_verify", access_token: l.session.access_token, refresh_token: l.session.refresh_token, code: await code(secret), factor_id: factorId ?? l.totp?.factor_id });
+  if (v.session) await u.c.auth.setSession({ access_token: v.session.access_token, refresh_token: v.session.refresh_token });
+  return v;
+}
+async function stepup(u, secret) {
+  const { data: s } = await u.c.auth.getSession();
+  const v = await authFn({ action: "stepup", code: await code(secret), refresh_token: s.session.refresh_token }, s.session.access_token);
+  if (v.session) await u.c.auth.setSession({ access_token: v.session.access_token, refresh_token: v.session.refresh_token });
+  return v;
+}
 async function confirmedBooking(client, comp, dayN, extra = {}) {
   const r = await call(client, "create-booking", { companion_id: comp.id, category: "shopping", starts_at: day(dayN), hours: 2, place: "Galeries Lafayette, Paris", language: "Français" });
   if (!r.booking) throw new Error("création : " + JSON.stringify(r));
@@ -85,6 +106,7 @@ async function confirmedBooking(client, comp, dayN, extra = {}) {
   const fake = await user("faux-admin@test.fr", { ...base, first_name: "Pirate", role: "admin" });
   check("A01", "Inscription avec le rôle « admin » demandé → compte client", (await row("profiles", fake.id)).role === "client");
   await svc.from("profiles").update({ role: "admin" }).eq("id", adm.id);
+  await svc.from("admin_accounts").insert({ user_id: adm.id, level: "super", must_change_password: false });   // dirigeant (super-administrateur)
   await svc.from("companions").update({ verified: true, video_interview_ok: true, categories: ["shopping"], hour_from: 0, hour_to: 24, stripe_account_id: "acct_test123", payouts_enabled: true }).eq("id", comp.id);
   await insure(comp.id);
   const minor = await svc.auth.admin.createUser({ email: "mineur@test.fr", password: "Test-Passw0rd!", email_confirm: true, user_metadata: { first_name: "Jeune", last_name: "T", birth_date: at(-16 * 365 * 24 * H).slice(0, 10), role: "client" } });
@@ -265,10 +287,16 @@ async function confirmedBooking(client, comp, dayN, extra = {}) {
   check("K02", "Client refusé dans l'espace administrateur", r.status === 403);
   const { data: enr, error: enrErr } = await adm.c.auth.mfa.enroll({ factorType: "totp", friendlyName: "test" });
   if (enrErr) console.log("MFA enroll", enrErr.message);
+  const ADM_SECRET = enr.totp.secret;
   const { data: ch } = await adm.c.auth.mfa.challenge({ factorId: enr.id });
-  const { error: verr } = await adm.c.auth.mfa.verify({ factorId: enr.id, challengeId: ch.id, code: totp(enr.totp.secret) });
+  await adm.c.auth.mfa.verify({ factorId: enr.id, challengeId: ch.id, code: await code(ADM_SECRET) });
   r = await call(adm, "admin-action", { action: "overview" });
-  check("K03", "Administrateur AVEC double authentification (TOTP) accepté", !verr && r.status === 200, verr?.message ?? `${r.review?.length ?? 0} dossier(s) à vérifier`);
+  check("K10", "TOTP validé hors espace de gestion (appel direct au service d'authentification) → refusé : aucune session de gestion", r.status === 401, r.error);
+  const lg = await adminLogin(adm, ADM_SECRET);
+  // Appel administrateur : nouvelle saisie du code si l'opération est sensible (428), reconnexion si la session a expiré (401)
+  var callA = async (fn, body) => { let x = await call(adm, fn, body); if (x.status === 428) { await stepup(adm, ADM_SECRET); x = await call(adm, fn, body); } else if (x.status === 401) { await adminLogin(adm, ADM_SECRET); x = await call(adm, fn, body); } return x; };
+  r = await call(adm, "admin-action", { action: "overview" });
+  check("K03", "Administrateur connecté par l'espace de gestion (mot de passe + TOTP) accepté", !!lg.session && r.status === 200, lg.error ?? `${r.review?.length ?? 0} dossier(s) à vérifier`);
   await unverified.c.storage.from("documents").upload(`${unverified.id}/piece.jpg`, new Blob([new Uint8Array([255, 216, 255, 224])], { type: "image/jpeg" }));
   const { error: idErr } = await unverified.c.from("identity_checks").insert({ user_id: unverified.id, doc_path: `${unverified.id}/piece.jpg` });
   const ov = await call(adm, "admin-action", { action: "overview" });
@@ -277,14 +305,125 @@ async function confirmedBooking(client, comp, dayN, extra = {}) {
   r = await call(adm, "admin-action", { action: "identity_review", check_id: chk?.id, approve: true });
   check("K05", "Validation de l'identité par l'admin → le membre peut réserver", r.ok && (await row("profiles", unverified.id)).identity_verified === true);
   const disp = (await svc.from("disputes").select("id").eq("booking_id", nv.id).single()).data;
+  await stepup(adm, ADM_SECRET);
   r = await call(adm, "admin-action", { action: "dispute_decide", dispute_id: disp.id, decision: "payout", note: "Prestation confirmée par les messages" });
   check("K06", "Litige tranché « versement » → versement exécuté une fois", r.ok && (await count("ledger", { booking_id: nv.id, kind: "Versement" })) === 1);
   r = await call(adm, "admin-action", { action: "dispute_decide", dispute_id: disp.id, decision: "payout", note: "Second clic" });
   check("K07", "Même litige tranché deux fois → refusé", r.status === 409);
+  await stepup(adm, ADM_SECRET);
   r = await call(adm, "admin-action", { action: "suspend", user_id: intrus.id, suspended: true, reason: "Harcèlement signalé" });
   const rs = await call(intrus, "create-booking", { companion_id: comp.id, category: "shopping", hours: 2, place: "Paris centre", starts_at: day(14) });
   check("K08", "Compte suspendu par l'admin → plus aucune action possible", r.ok && rs.status === 403);
   check("K09", "Chaque action admin est journalisée", (await count("audit_log", { actor_id: adm.id })) >= 4);
+
+  // ---------- Espace de gestion sécurisé (mission 3) ----------
+  {
+  r = await authFn({ action: "login", email: adm.email, password: "mauvais-mot-de-passe" });
+  check("M01", "Mauvais mot de passe → refus générique", r.status === 401 && r.error === "Identifiants incorrects.");
+  r = await authFn({ action: "login", email: client.email, password: "Test-Passw0rd!" });
+  check("M02", "Compte client (bon mot de passe) refusé avec le même message, sans révéler l'existence du compte", r.status === 401 && r.error === "Identifiants incorrects." && !r.session);
+  const adm2 = await user("moderation@test.fr", { ...base, first_name: "Modo", role: "client" });
+  await svc.from("profiles").update({ role: "admin" }).eq("id", adm2.id);
+  await svc.from("admin_accounts").insert({ user_id: adm2.id, level: "admin", must_change_password: false, created_by: adm.id });
+  const { data: enr2 } = await adm2.c.auth.mfa.enroll({ factorType: "totp", friendlyName: "modo" });
+  const SEC2 = enr2.totp.secret;
+  for (let i = 0; i < 5; i++) r = await authFn({ action: "login", email: adm2.email, password: "faux-" + i });
+  const locked = await authFn({ action: "login", email: adm2.email, password: "Test-Passw0rd!" });
+  const lockAlert = await count("notifications", { user_id: adm.id, kind: "securite" });
+  check("M03", "5 échecs → accès bloqué 15 min, même avec le bon mot de passe ; dirigeant alerté", r.status === 401 && locked.status === 423 && lockAlert >= 1, locked.error);
+  check("M04", "Blocage et échecs inscrits dans le journal des connexions", (await count("admin_auth_events", { email: adm2.email, event: "locked" })) === 1 && (await count("admin_auth_events", { email: adm2.email, event: "login_fail" })) >= 5);
+  r = await callA("admin-action", { action: "admin_unlock", email: adm2.email });
+  const lg2 = await adminLogin(adm2, SEC2, enr2.id);
+  check("M05", "Déblocage par le dirigeant puis connexion avec activation du TOTP", r.ok && !!lg2.session, lg2.error);
+  r = await call(adm2, "admin-action", { action: "settings_update", settings: { cancel_mid_pct: 55 } });
+  const r2b = await call(adm2, "admin-action", { action: "admin_create", email: "x@test.fr", first_name: "X", last_name: "Y" });
+  check("M06", "Administrateur simple : paramètres et gestion des administrateurs refusés (dirigeant uniquement)", r.status === 403 && r2b.status === 403);
+  r = await call(adm2, "admin-action", { action: "suspend", user_id: adm.id, suspended: true, reason: "Tentative" });
+  check("M07", "Le compte du dirigeant ne peut pas être suspendu", r.status === 403);
+  await sleep(125_000);   // délai de « nouvelle authentification » raccourci à 120 s dans les tests (5 min en production)
+  r = await call(adm2, "admin-action", { action: "suspend", user_id: intrus.id, suspended: false, reason: "Contestation acceptée" });
+  const su = await stepup(adm2, SEC2);
+  const r3 = await call(adm2, "admin-action", { action: "suspend", user_id: intrus.id, suspended: false, reason: "Contestation acceptée" });
+  check("M08", "Opération sensible : nouveau code TOTP exigé, puis acceptée (réactivation d'un compte)", r.status === 428 && !!su.session && r3.ok && (await row("profiles", intrus.id)).suspended === false, r.error);
+  const { data: s2 } = await adm2.c.auth.getSession();
+  const sid2 = JSON.parse(Buffer.from(s2.session.access_token.split(".")[1], "base64url").toString()).session_id;
+  await svc.from("admin_sessions").update({ last_seen_at: new Date(Date.now() - 16 * 60_000).toISOString() }).eq("session_id", sid2);
+  r = await call(adm2, "admin-action", { action: "ping" });
+  const ended = (await svc.from("admin_sessions").select("end_reason").eq("session_id", sid2).single()).data;
+  check("M09", "15 minutes d'inactivité → session fermée côté serveur et journalisée", r.status === 401 && ended?.end_reason === "inactivite" && (await count("admin_auth_events", { user_id: adm2.id, event: "timeout" })) >= 1, r.error);
+  const { data: rest1 } = await client.c.from("admin_auth_events").select("*");
+  const { data: rest2 } = await client.c.from("admin_accounts").select("*");
+  const { error: rest3 } = await client.c.rpc("adm_counts");
+  const { error: rest4 } = await client.c.rpc("adm_users", { p_role: "", p_q: "", p_status: "", p_limit: 50, p_offset: 0 });
+  r = await call(client, "admin-action", { action: "users" });
+  const r4 = await call(comp, "admin-action", { action: "finance" });
+  check("M10", "Client et accompagnateur : aucune donnée d'administration, même en appelant directement les API", (rest1 ?? []).length === 0 && (rest2 ?? []).length === 0 && !!rest3 && !!rest4 && r.status === 403 && r4.status === 403);
+  const { error: imm } = await svc.from("audit_log").delete().gte("id", 0);
+  check("M11", "Journal inviolable : suppression refusée même avec la clé serveur", !!imm);
+  // Assistance intégrée
+  const { data: tk, error: tkErr } = await client.c.rpc("support_open", { p_category: "paiement", p_subject: "Remboursement", p_body: "Je n'ai pas reçu mon remboursement de la réservation.", p_booking_ref: null });
+  r = await callA("admin-action", { action: "support_list" });
+  const seen = (r.tickets ?? []).find((t) => t.id === tk?.id);
+  await callA("admin-action", { action: "support_reply", ticket_id: tk?.id, body: "Nous avons relancé le remboursement : il arrive sous 5 jours." });
+  const { data: msgs } = await client.c.from("support_messages").select("from_staff, body").eq("ticket_id", tk?.id);
+  const tkNotif = await count("notifications", { user_id: client.id, kind: "assistance" });
+  check("M12", "Assistance : demande du client visible par l'équipe, réponse reçue dans l'application", !tkErr && !!seen && (msgs ?? []).some((m) => m.from_staff) && tkNotif >= 1 && (await row("support_tickets", tk.id)).status === "repondue", tkErr?.message);
+  const { data: other } = await comp.c.from("support_tickets").select("id").eq("id", tk?.id);
+  check("M13", "Assistance : un autre membre ne voit pas la demande", (other ?? []).length === 0);
+  // Données réelles
+  r = await callA("admin-action", { action: "dashboard", days: 365 });
+  const fin = r.finance ?? {};
+  check("M14", "Tableau de bord : compteurs et finances calculés sur les données réelles", r.counts?.clients >= 2 && r.counts?.accompagnateurs >= 1 && Number(fin.encaisse) > 0 && Array.isArray(fin.par_mois), JSON.stringify(r.counts));
+  const ledgerSum = ((await svc.from("ledger").select("amount, kind")).data ?? []).filter((l) => l.kind.startsWith("Encaissement")).reduce((a, l) => a + Number(l.amount), 0);
+  r = await callA("admin-action", { action: "finance" });
+  check("M15", "Montant encaissé identique au grand livre ; commissions = 20 % des prestations terminées", Math.abs(Number(r.finance?.encaisse) - ledgerSum) < 0.01
+    && Math.abs(Number(r.finance?.commissions) - Number(r.finance?.volume_prestations) * Number(r.rules?.companion_fee_pct) / 100) < 0.05, `${r.finance?.encaisse} / ${ledgerSum}`);
+  r = await callA("admin-action", { action: "users", q: "client@test" });
+  const ud = await callA("admin-action", { action: "user_detail", user_id: client.id });
+  check("M16", "Recherche d'un membre et fiche complète (e-mail, réservations, assistance)", r.users?.[0]?.email === "client@test.fr" && ud.profile?.email === "client@test.fr" && (ud.bookings ?? []).length > 0 && (ud.tickets ?? []).length >= 1);
+  r = await callA("admin-action", { action: "bookings" });
+  const bd = await callA("admin-action", { action: "booking_detail", booking_id: r.bookings?.[0]?.id });
+  const tx = await callA("admin-action", { action: "transactions" });
+  check("M17", "Réservations, détail (sans code de rencontre ni identifiant de paiement) et transactions", r.total > 0 && !!bd.booking && !("meeting_code_hash" in bd.booking) && !("stripe_payment_intent_id" in bd.booking) && tx.total > 0);
+  // Photos : vérification humaine
+  await comp.c.storage.from("photos").upload(`${comp.id}/avatar-test.jpg`, new Blob([new Uint8Array([255, 216, 255, 224])], { type: "image/jpeg" }));
+  await comp.c.from("profiles").update({ avatar_path: `${comp.id}/avatar-test.jpg` }).eq("id", comp.id);
+  r = await callA("admin-action", { action: "photos" });
+  const ph = (r.photos ?? []).find((x) => x.storage_path === `${comp.id}/avatar-test.jpg`);
+  const pr = await callA("admin-action", { action: "photo_review", photo_id: ph?.id, approve: true });
+  const { data: dir } = await client.c.rpc("companions_directory");
+  check("M18", "Nouvelle photo d'accompagnateur : vérifiée par l'équipe puis visible des clients", !!ph?.url && pr.ok && (dir ?? []).some((c) => c.id === comp.id && c.photo_path === `${comp.id}/avatar-test.jpg`));
+  // Paramètres, annonces, administrateurs (dirigeant)
+  r = await callA("admin-action", { action: "settings_update", settings: { cancel_mid_pct: 55 } });
+  const bad = await callA("admin-action", { action: "settings_update", settings: { client_fee_pct: 99 } });
+  await callA("admin-action", { action: "settings_update", settings: { cancel_mid_pct: 50 } });
+  const sLog = (await svc.from("audit_log").select("action, details").eq("ref", "settings").order("id", { ascending: false }).limit(2)).data ?? [];
+  check("M19", "Paramètres : modification journalisée (avant/après), valeurs hors limites refusées", r.ok && bad.status === 400 && sLog.length === 2 && !!sLog[1].details?.before, bad.error);
+  r = await callA("admin-action", { action: "announce", audience: "client", body: "Nouveauté : l'assistance est disponible dans l'application." });
+  check("M20", "Annonce aux clients : notifications créées et historique", r.ok && r.recipients >= 2 && (await count("notifications", { user_id: client.id, kind: "annonce" })) === 1);
+  r = await callA("admin-action", { action: "admin_create", email: "nouvel.admin@test.fr", first_name: "Nadia", last_name: "Admin" });
+  const tmp = r.temporary_password;
+  const nu = { email: "nouvel.admin@test.fr", c: (await import("@supabase/supabase-js")).createClient(URL, ANON, { auth: { persistSession: false } }) };
+  const l3 = await authFn({ action: "login", email: nu.email, password: tmp });
+  await nu.c.auth.setSession(l3.session ?? { access_token: "", refresh_token: "" });
+  const { data: enr3 } = await nu.c.auth.mfa.enroll({ factorType: "totp", friendlyName: "n" });
+  const v3 = await authFn({ action: "mfa_verify", access_token: l3.session?.access_token, refresh_token: l3.session?.refresh_token, code: await code(enr3.totp.secret), factor_id: enr3.id });
+  await nu.c.auth.setSession(v3.session);
+  const blocked = await call(nu, "admin-action", { action: "dashboard" });
+  const weak = await authFn({ action: "change_password", password: "court" }, v3.session?.access_token);
+  const strong = await authFn({ action: "change_password", password: "Vrai-Mot-De-Passe-2026!#" }, v3.session?.access_token);
+  const afterPw = await call(nu, "admin-action", { action: "dashboard" });
+  check("M21", "Nouvel administrateur : mot de passe provisoire à changer (fort obligatoire) avant tout accès", !!tmp && blocked.status === 403 && weak.status === 400 && strong.ok && afterPw.status === 200, `${blocked.error} / ${weak.error}`);
+  const auditTxt = JSON.stringify((await svc.from("audit_log").select("action").order("id", { ascending: false }).limit(30)).data);
+  const evTxt = JSON.stringify((await svc.from("admin_auth_events").select("*")).data);
+  check("M22", "Aucun mot de passe (provisoire ou saisi) dans les journaux", !auditTxt.includes(tmp) && !evTxt.includes(tmp) && !evTxt.includes("Vrai-Mot-De-Passe") && !evTxt.includes("faux-"));
+  r = await callA("admin-action", { action: "admin_revoke", user_id: adm2.id });
+  const gone = await adminLogin(adm2, SEC2, enr2.id);
+  check("M23", "Accès administrateur retiré : connexion à l'espace de gestion impossible", r.ok && !gone.session && (await row("profiles", adm2.id)).role === "client");
+  const out = await authFn({ action: "logout" }, v3.session?.access_token);
+  r = await call(nu, "admin-action", { action: "ping" });
+  check("M24", "Déconnexion : session fermée, l'API refuse ensuite l'accès", out.ok && r.status === 401);
+  }
 
 
   // ---------- Audit fonctionnel (agenda, vérifications, parrainage, messagerie, justificatifs, historique) ----------
@@ -365,6 +504,7 @@ async function confirmedBooking(client, comp, dayN, extra = {}) {
   // Dossier administratif
   const { error: aErr } = await comp.c.from("companions").update({ legal_status: "micro", tax_id: "12345678900011" }).eq("id", comp.id);
   check("H22", "Dossier administratif transmis → « en cours de vérification »", !aErr && (await row("companions", comp.id)).admin_status === "en_cours", aErr?.message);
+  await adminLogin(adm, ADM_SECRET);
   r = await call(adm, "admin-action", { action: "admin_review", companion_id: comp.id, approve: true });
   check("H23", "Dossier administratif validé par l'admin", r.ok && (await row("companions", comp.id)).admin_status === "valide");
   // Suppression de compte avec abonnement Privilège
@@ -374,7 +514,8 @@ async function confirmedBooking(client, comp, dayN, extra = {}) {
 
 
   // ---------- Fiscalité DAC7 ----------
-  const Y = new Date().getFullYear(), TX = (body, u = adm) => call(u, "tax-admin", { year: Y, ...body });
+  await adminLogin(adm, ADM_SECRET);
+  const Y = new Date().getFullYear(), TX = (body, u = adm) => u === adm ? callA("tax-admin", { year: Y, ...body }) : call(u, "tax-admin", { year: Y, ...body });
   r = await TX({ action: "overview" }, client);
   check("X01", "Espace fiscal DAC7 interdit à un client", r.status === 403);
   r = await TX({ action: "overview" });
@@ -426,6 +567,7 @@ async function confirmedBooking(client, comp, dayN, extra = {}) {
   check("X21", "Déclarations invisibles pour les accompagnateurs", (leakDecl ?? []).length === 0);
 
   // ---------- Fiscalité : compléments (ventilation, statuts, documents officiels, ZIP) ----------
+  await adminLogin(adm, ADM_SECRET);
   r = await TX({ action: "overview" });
   const bd = (r.breakdown ?? []).find((x) => x.companion_id === comp.id) ?? {};
   check("X22", "Ventilation : payé client, frais client, commission, net, remboursements, taxes", Number(bd.client_paid) > Number(bd.gross) && Number(bd.client_fees) > 0 && Number(bd.commission) > 0 && Math.abs(Number(bd.declarable) - (Number(bd.gross) - Number(bd.commission) + Number(bd.tips))) < 0.01 && Number(bd.taxes) === 0 && !!r.stage,
@@ -460,6 +602,7 @@ async function confirmedBooking(client, comp, dayN, extra = {}) {
   check("X32", "Ma ventilation fiscale (accompagnateur)", (myb ?? []).length === 1 && Number(myb[0].declarable) > 0 && myb[0].client_fees === undefined);
 
   // ---------- Assurance responsabilité civile ----------
+  await adminLogin(adm, ADM_SECRET);
   const comp3 = await user("ines@test.fr", { ...base, first_name: "Inès", role: "companion", non_circumvention: true }, { identity_verified: true });
   await svc.from("companions").update({ verified: true, video_interview_ok: true, categories: ["shopping"], hour_from: 0, hour_to: 24, stripe_account_id: "acct_test_ines", payouts_enabled: true }).eq("id", comp3.id);
   const cY = await user("client-assurance@test.fr", { ...base, first_name: "Nora", role: "client" }, { identity_verified: true });
@@ -479,19 +622,19 @@ async function confirmedBooking(client, comp, dayN, extra = {}) {
   check("Y04", "Auto-validation impossible ; justificatif illisible par un autre membre", !!selfVal && !!dlOther.error && !!dlClient.error);
   r = await call(comp3, "insurance", { action: "list" });
   check("Y05", "Gestion des assurances interdite hors administrateurs", r.status === 403);
-  r = await call(adm, "insurance", { action: "list", filter: "attente", q: "inès" });
+  r = await callA("insurance", { action: "list", filter: "attente", q: "inès" });
   check("Y06", "Liste « en attente », recherche et compteurs", (r.rows ?? []).length === 1 && r.rows[0].state === "en_attente" && r.counts?.attente >= 1 && r.uninsured?.some((u) => u.companion_id === comp3.id), JSON.stringify(r.counts));
-  r = await call(adm, "insurance", { action: "doc", id: i1?.id });
+  r = await callA("insurance", { action: "doc", id: i1?.id });
   check("Y07", "Consultation du justificatif (lien temporaire) journalisée", !!r.url && (await count("insurance_reviews", { insurance_id: i1?.id, decision: "consultation" })) === 1);
-  r = await call(adm, "insurance", { action: "review", id: i1?.id, approve: false });
-  const r2 = await call(adm, "insurance", { action: "review", id: i1?.id, approve: false, reason: "Activité rémunérée non mentionnée" });
+  r = await callA("insurance", { action: "review", id: i1?.id, approve: false });
+  const r2 = await callA("insurance", { action: "review", id: i1?.id, approve: false, reason: "Activité rémunérée non mentionnée" });
   check("Y08", "Refus : motif obligatoire, accompagnateur informé du motif", r.status === 400 && r2.ok && (await row("companion_insurances", i1?.id)).status === "refusee" && (await svc.from("notifications").select("body").eq("user_id", comp3.id).eq("kind", "assurance")).data?.some((n) => n.body.includes("non mentionnée")));
   r = await IB(5);
   check("Y09", "Attestation refusée : réservations toujours bloquées", r.status === 409);
   await comp3.c.storage.from("insurance").upload(`${comp3.id}/rc-2.pdf`, pdfBytes);
   const { data: i2 } = await comp3.c.from("companion_insurances").insert(insRow(`${comp3.id}/rc-2.pdf`, { ends_on: at(60 * 24 * H).slice(0, 10) })).select().single();
-  r = await call(adm, "insurance", { action: "review", id: i2?.id, approve: true });
-  const again = await call(adm, "insurance", { action: "review", id: i2?.id, approve: true });
+  r = await callA("insurance", { action: "review", id: i2?.id, approve: true });
+  const again = await callA("insurance", { action: "review", id: i2?.id, approve: true });
   const ok3 = await IB(5);
   check("Y10", "Nouvelle attestation validée : réservations réactivées", r.ok && again.status === 409 && !!ok3.booking, ok3.error);
   r = await IB(70);
@@ -506,7 +649,7 @@ async function confirmedBooking(client, comp, dayN, extra = {}) {
   const adminMsg = (await svc.from("notifications").select("body").eq("user_id", adm.id).eq("kind", "assurance")).data ?? [];
   check("Y13", "Expiration : statut « expirée », accompagnateur prévenu, équipe informée des réservations affectées", exp.status === "expiree" && adminMsg.some((n) => n.body.includes(ok3.booking?.ref)), adminMsg.map((n) => n.body).join(" | "));
   r = await IB(8);
-  const aff = await call(adm, "insurance", { action: "list", filter: "expirees" });
+  const aff = await callA("insurance", { action: "list", filter: "expirees" });
   check("Y14", "Assurance expirée : nouvelle réservation refusée, réservation existante signalée", r.status === 409 && /assurance/i.test(r.error ?? "") && (aff.affected ?? []).some((b) => b.booking_id === ok3.booking?.id) && aff.rows.every((x) => x.state === "expiree"), `${r.status} ${r.error}`);
   r = await call(comp3, "account", { action: "export" });
   check("Y15", "Export RGPD : contrats d'assurance inclus", (r.insurances ?? []).length === 2);

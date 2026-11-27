@@ -2,7 +2,7 @@
 // (rôle admin + double authentification). Side by Side vérifie l'attestation d'un contrat personnel :
 // la plateforme n'est pas assureur et ne fournit aucune garantie.
 // Chaque consultation de justificatif, validation et refus est journalisé.
-import { admin, json, serve, requireAdmin, audit, notify, notifyAdmins, HttpError } from "../_shared/clients.ts";
+import { admin, json, serve, requireAdmin, requireStepUp, requireSuper, audit, notify, notifyAdmins, HttpError } from "../_shared/clients.ts";
 
 const today = () => new Date().toLocaleDateString("en-CA", { timeZone: "Europe/Paris" });   // AAAA-MM-JJ, heure de Paris
 // État affiché : validée et en cours, expire bientôt (≤ 30 jours), expirée, en attente, refusée
@@ -17,6 +17,9 @@ export function stateOf(i: { status: string; ends_on: string; starts_on: string 
 
 serve(async (req) => {
   const me = await requireAdmin(req);
+  const act = String((await req.clone().json().catch(() => ({}))).action);
+  if (act === "review" || act === "required") requireStepUp(me);   // opérations sensibles
+  if (act === "required") requireSuper(me);                        // obligation d'assurance : décision du dirigeant
   const body = await req.json();
   switch (body.action) {
     case "list": {                                          // listes, recherche et filtres

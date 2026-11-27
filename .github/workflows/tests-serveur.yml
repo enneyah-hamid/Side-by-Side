@@ -18,7 +18,10 @@ jobs:
           for CFG in $(find supabase -maxdepth 1 -name 'config.*'); do
             perl -0pi -e 's/(totp\W*\{[^}]*?)enroll_enabled(\W*)false/$1enroll_enabled$2true/s; s/(totp\W*\{[^}]*?)verify_enabled(\W*)false/$1verify_enabled$2true/s; s/(totp\W*\{[^}]*?)enrollEnabled(\W*)false/$1enrollEnabled$2true/s; s/(totp\W*\{[^}]*?)verifyEnabled(\W*)false/$1verifyEnabled$2true/s' "$CFG"
             perl -0pi -e 's/(\[auth\.mfa\.totp\][^\[]*?)enroll_enabled\s*=\s*false/$1enroll_enabled = true/s; s/(\[auth\.mfa\.totp\][^\[]*?)verify_enabled\s*=\s*false/$1verify_enabled = true/s' "$CFG"
-            echo "configuration : $CFG"; grep -n -i -A4 'totp' "$CFG" | head -12
+            # Les tests enchaînent de nombreuses connexions depuis la même adresse : limites relevées (tests uniquement)
+            perl -pi -e 's/^(\s*sign_in_sign_ups\s*=\s*)\d+/${1}2000/; s/^(\s*token_verifications\s*=\s*)\d+/${1}2000/; s/^(\s*token_refresh\s*=\s*)\d+/${1}2000/' "$CFG"
+            perl -0pi -e 's/(signInSignUps\W*)\d+/${1}2000/; s/(tokenVerifications\W*)\d+/${1}2000/' "$CFG"
+            echo "configuration : $CFG"; grep -n -i -A4 'totp' "$CFG" | head -12; grep -n -i 'sign_in_sign_ups\|signInSignUps\|token_verifications' "$CFG" | head -4
           done
           npx -y supabase@2 start -x studio,imgproxy,vector,logflare,supavisor,postgres-meta,mailpit
           npx -y supabase@2 status -o env > ../tests/.sb.env
@@ -34,6 +37,7 @@ jobs:
           INTERNAL_KEY=cle-interne-de-test-tres-longue-123456
           APP_ORIGIN=https://sidebyside.example
           TAX_ALLOW_CURRENT_YEAR=1
+          ADMIN_STEPUP_SECONDS=120
           EOT
           sed -i 's/^ *//' tests/.env.functions
           cd serveur && (npx -y supabase@2 functions serve --env-file ../tests/.env.functions --no-verify-jwt > ../tests/functions.log 2>&1 &)

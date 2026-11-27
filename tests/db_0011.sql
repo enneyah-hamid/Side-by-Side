@@ -4,7 +4,7 @@ create or replace function pg_temp.ok(id text, label text, cond boolean, detail 
 begin raise notice '%', (case when cond then '✅ ' else '❌ ' end) || id || ' ' || label || (case when coalesce(detail,'') <> '' then ' — ' || detail else '' end); end $$;
 create or replace function pg_temp.as_user(uid text, aal text default 'aal1') returns void language plpgsql as $$
 begin perform set_config('request.jwt.claim.sub', uid, false);
-      perform set_config('request.jwt.claims', json_build_object('sub', uid, 'role', 'authenticated', 'aal', aal)::text, false); end $$;
+      perform set_config('request.jwt.claims', json_build_object('sub', uid, 'role', 'authenticated', 'aal', aal, 'session_id', '99999999-9999-9999-9999-999999999999')::text, false); end $$;
 grant execute on all functions in schema pg_temp to authenticated, service_role;
 
 insert into auth.users(id,raw_user_meta_data) values
@@ -13,6 +13,11 @@ insert into auth.users(id,raw_user_meta_data) values
  ('00000000-0000-0000-0000-0000000000b2','{"first_name":"Yanis","last_name":"Martin","birth_date":"1990-06-06","role":"companion"}'),
  ('00000000-0000-0000-0000-0000000000c1','{"first_name":"Admin","last_name":"Z","birth_date":"1980-01-01"}');
 update profiles set role='admin' where id='00000000-0000-0000-0000-0000000000c1';
+-- Depuis 0013 : un administrateur doit avoir un compte administrateur actif et une session ouverte par l'espace de gestion
+do $$ begin if to_regclass('public.admin_accounts') is not null then
+  execute $q$insert into admin_accounts(user_id, level) values ('00000000-0000-0000-0000-0000000000c1','admin');
+             insert into admin_sessions(session_id, user_id) values ('99999999-9999-9999-9999-999999999999','00000000-0000-0000-0000-0000000000c1')$q$;
+end if; end $$;
 update companions set verified=true, video_interview_ok=true where id in ('00000000-0000-0000-0000-0000000000b1','00000000-0000-0000-0000-0000000000b2');
 
 -- ---------- Assurance ----------

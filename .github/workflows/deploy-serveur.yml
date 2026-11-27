@@ -31,7 +31,7 @@ jobs:
           if [ -z "$SUPABASE_ACCESS_TOKEN" ]; then echo "Secret SUPABASE_ACCESS_TOKEN absent : déploiement ignoré."; exit 0; fi
           for f in supabase/functions/*/; do
             n=$(basename "$f"); [ "$n" = "_shared" ] && continue
-            case "$n" in stripe-webhook|release-payout|sweeper|monthly-invoice) flag="--no-verify-jwt";; *) flag="";; esac
+            case "$n" in stripe-webhook|release-payout|sweeper|monthly-invoice|admin-auth) flag="--no-verify-jwt";; *) flag="";; esac
             echo "→ $n $flag"; npx -y supabase@2 functions deploy "$n" --project-ref "$PROJECT" --use-api $flag
           done
       - name: Clé d'envoi des e-mails pour les fonctions serveur (si le secret RESEND_API_KEY existe)

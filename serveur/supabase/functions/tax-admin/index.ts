@@ -1,7 +1,7 @@
 // Fiscalité et déclarations DAC7 — réservé aux administrateurs (rôle admin + double authentification).
 // Chaque consultation, génération, téléchargement et modification est journalisé.
 // La transmission à la DGFiP se fait sur impots.gouv.fr après validation explicite d'un administrateur.
-import { admin, json, serve, requireAdmin, audit, notify, sha256, HttpError } from "../_shared/clients.ts";
+import { admin, json, serve, requireAdmin, requireStepUp, audit, notify, sha256, HttpError } from "../_shared/clients.ts";
 import { buildDpiXml, checkOperator, checkSeller, consideration, euros, parseStatusMessage, type Operator, type Seller } from "../_shared/dpi.ts";
 
 const PORTAL = "https://www.impots.gouv.fr/transfert-dinformations-en-application-des-dispositifs-dpi-dac7-plateformes-deconomie-collaborative";
@@ -32,6 +32,7 @@ function stage(decls: any[], blocking: boolean) {
 
 serve(async (req) => {
   const me = await requireAdmin(req);
+  if (["validate", "receipt", "import_receipt", "certificates"].includes(String((await req.clone().json().catch(() => ({}))).action))) requireStepUp(me);   // opérations sensibles
   const body = await req.json();
   const year = Number(body.year);
   switch (body.action) {
