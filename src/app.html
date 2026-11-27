@@ -805,7 +805,7 @@ function seed(){
   seedV19();b5.tip=10;
   seedV20();
   seedV22();S.comfort=!!window.__comfort;
-  seedV23();seedFix();v26Init();v27Init();v28Init();v29Init();EXTRA_SHEETS['live-export']=(s,h)=>liveSheets(s,h);EXTRA_SHEETS['pv-delete']=(s,h)=>v26Sheets(s,h);
+  seedV23();seedFix();v26Init();v27Init();v28Init();v29Init();v30Init();v30AdminInit();EXTRA_SHEETS['live-export']=(s,h)=>liveSheets(s,h);EXTRA_SHEETS['pv-delete']=(s,h)=>v26Sheets(s,h);
 }
 function comp(id){return S.companions.find(c=>c.id===id)}
 function endOf(b){return b.start+(b.hours*60+b.extMins)*M}
@@ -956,8 +956,8 @@ function _render(){
   const roleName={client:S.biz?'Espace Entreprise · '+S.biz.name:'Espace Client · '+(S.users.u1&&S.users.u1.name||''),companion:'Espace Accompagnateur · '+((comp('c1')||{}).name||''),admin:'Administration Side by Side'}[S.role];
   let body='';
   if(S.role==='admin'&&!S.adminOk)body=mfa();
-  else body=({client:{home:cHome,explore:cExplore,bookings:cBookings,messages:inbox,favs:cFavs,account:()=>accPage('client')},companion:{home:pHome,requests:pRequests,agenda:pAgenda,messages:inbox,earnings:()=>pEarnings()+pYearCard()+tipsCard()+pExpCard(),profile:()=>accPage('companion')},admin:{dashboard:()=>aPhoneSearch()+aDash()+aSupport(),disputes:()=>aDisputes()+aDecisions(),users:()=>aVerif()+aGalReview()+aExpReview()+aBiz()+aUsers(),settings:()=>aSettings()+aAdmins()+aPhotoTool()+logoutBlock(),audit:aAudit}}[S.role][S.tab]||(()=>''))();
-  const tabs={client:['home','explore','bookings','messages','account'],companion:['home','requests','agenda','messages','profile'],admin:['dashboard','disputes','users','settings','audit']}[S.role];
+  else body=({client:{home:cHome,explore:cExplore,bookings:cBookings,messages:inbox,favs:cFavs,account:()=>accPage('client')},companion:{home:pHome,requests:pRequests,agenda:pAgenda,messages:inbox,earnings:()=>pEarnings()+pYearCard()+tipsCard()+pExpCard(),profile:()=>accPage('companion')},admin:ADMIN_VIEWS}[S.role][S.tab]||(()=>''))();
+  const tabs={client:['home','explore','bookings','messages','account'],companion:['home','requests','agenda','messages','profile'],admin:ADMIN_TABS}[S.role];
   app.innerHTML=`<header class="top"><div class="wrap top-in"><div class="brand"><small>${esc(roleName)}</small></div>
     <div class="tools"><select class="lang" id="lang" aria-label="Langue">${Object.keys(T).map(l=>`<option value="${l}" ${l===S.lang?'selected':''}>${l.toUpperCase()}</option>`).join('')}</select>
     <button class="iconbtn" data-a="theme" aria-label="Changer de thème">${svg('sun')}</button>
@@ -979,7 +979,7 @@ function welcome(){return `<main class="login"><div class="wrap login-in">
 <button class="btn pri full big" data-a="role" data-v="client"><span class="bt"><b>Je suis Client</b><small>Réserver un accompagnateur</small></span><span aria-hidden="true">→</span></button>
 <button class="btn full big" data-a="role" data-v="companion"><span class="bt"><b>Je suis Accompagnateur</b><small>Proposer mes services</small></span><span aria-hidden="true">→</span></button>
 <div class="login-links"><button class="btn ghost" data-a="role" data-v="client">Se connecter</button><button class="btn ghost" data-a="signup">Créer un compte</button></div></div>
-<div class="login-foot"><button class="linkbtn" data-a="role" data-v="admin">Accès administrateur Side by Side</button></div>
+
 </div></main>`}
 
 function mfa(){if(S.admReset)return admResetHtml();if(!adminHash())return `<section class="section" style="max-width:420px;margin:0 auto"><h2>Créer le mot de passe administrateur</h2><p class="muted">Aucun code d'accès n'est inscrit dans l'application. Choisissez votre mot de passe administrateur personnel pour cet appareil.</p>
@@ -1507,7 +1507,7 @@ function extClick(a,el,id,v,b,me){switch(a){
   case'quick':{const r=api.send(b,me,QR[+v]);if(r.err)toast(r.err,true);setTimeout(()=>{const m=document.getElementById('msgs');m&&(m.scrollTop=m.scrollHeight)});break}
   case'receipts':S.prefs.receipts=el.checked;break;
   case'csv-b':{const rows=[['reference','date','client','accompagnateur','ville','activite','duree_h','statut','total_eur','commission_eur']].concat(S.bookings.slice().sort((x,y)=>x.start-y.start).map(x=>[x.ref,new Date(x.start).toISOString(),S.users[x.clientId].name,comp(x.companionId).name,comp(x.companionId).city,catName(x.cat),(x.hours*60+x.extMins)/60,ST[x.status][0],x.total.toFixed(2),x.service.toFixed(2)]));open('text',{title:'Export des réservations',sub:'Format CSV, séparateur point-virgule.',text:rows.map(r=>r.join(';')).join('\n')});break}
-  default:return v29Click(a,el,id,v,b)||v13Click(a,el,id,v,b,me)||v14Click(a,el,id,v)||v15Click(a,el,id,v,b)||v16Click(a)||v17Click(a,el,id,v)||v18Click(a,el,id,v)||v19Click(a,el,id,v,b)||v20Click(a,el,id,v,b)||v22Click(a,el,id,v,b)||v28Click(a,el,id,v,b)||dac7Click(a,el)||v23Click(a)||v26Click(a,el,id,v,b)}
+  default:return v30AdminClick(a,el,id,v,b)||v30Click(a,el,id,v,b)||v29Click(a,el,id,v,b)||v13Click(a,el,id,v,b,me)||v14Click(a,el,id,v)||v15Click(a,el,id,v,b)||v16Click(a)||v17Click(a,el,id,v)||v18Click(a,el,id,v)||v19Click(a,el,id,v,b)||v20Click(a,el,id,v,b)||v22Click(a,el,id,v,b)||v28Click(a,el,id,v,b)||dac7Click(a,el)||v23Click(a)||v26Click(a,el,id,v,b)}
   return true}
 function extChange(el){
   if(el.id==='tax-year'){S.taxYear=+el.value;render();return true}
@@ -1530,6 +1530,7 @@ function extSubmit(k,f,fd,d,b,me){
   if(k==='safety-report'){const who=S.role==='client'?'Sophie':'Camille';S.flags.push({t:now(),type:'Signalement : '+d.kind,ref:'—',who});notify('admin',`Signalement de ${who} : ${d.kind}.`);log(who,'Signalement de sécurité : '+d.kind+(d.desc?' — '+d.desc.slice(0,80):''),'—');S.sheet=null;toast('Signalement transmis à l\'équipe Side by Side.');return true}
   if(k==='support'){if(!(d.q||'').trim()){toast('Écrivez votre question.',true);return true}notify('admin',`Demande d'assistance sur ${b.ref} : ${d.q.trim().slice(0,80)}`);log(partyName(b,me),'Demande d\'assistance',b.ref);S.sheet=null;toast('Demande envoyée. Réponse sous 24 h.');return true}
   if(k==='bio-pw'){if(!(d.pw||'').trim()){const p=document.getElementById('lk-err');p.textContent=tr('Saisissez votre mot de passe.');p.hidden=false;return 'stop'}bioEnter();return true}
+  {const r30=v30AdminSubmit(k,f,d)||v30Submit(k,f,d);if(r30)return r30}
   {const r29=v29Submit(k,f,d);if(r29)return r29}
   {const rl=liveSubmit(k,f,d);if(rl)return rl}
   if(k==='admcode')return admCodeSubmit(d);
@@ -2039,7 +2040,7 @@ function legalDoc(id){const C=LEGAL_CO,st=S.settings,R=st.cancel,h=(t,b)=>`<h3>$
     +h('Signalement de contenus illicites',p(`Tout contenu illicite peut être signalé depuis l'application (bouton « Signaler ») ou à ${C.mail}. ${C.name} traite chaque signalement dans les meilleurs délais, conformément au règlement européen sur les services numériques.`));
   case'cgu':return h('1. Objet',p(`Les présentes conditions régissent l'utilisation de l'application ${C.brand}, éditée par ${C.name}. ${C.brand} propose des prestations d'accompagnement social, culturel, touristique et professionnel : visites, musées, sorties, dîners d'affaires, événements, accompagnement de personnes âgées.`))
     +h('2. Ce que n\'est pas Side by Side',p(`${C.brand} n'est ni un site de rencontres ni un service d'escorte. Tout service intime ou sexuel, toute sollicitation de cette nature et toute activité illégale sont strictement interdits. Toute infraction entraîne la suspension immédiate et définitive du compte, sans remboursement, et peut être signalée aux autorités.`))
-    +h('3. Comptes',ul(['L\'inscription est réservée aux personnes majeures (18 ans et plus).','L\'identité de chaque membre est vérifiée par un prestataire spécialisé (pièce d\'identité et selfie vidéo) avant toute réservation.','Les accompagnateurs passent en plus un entretien vidéo avec l\'équipe Side by Side et font valider leurs photos.','Chaque membre garantit l\'exactitude de ses informations et la confidentialité de son mot de passe.','Un seul compte par personne.']))
+    +h('3. Comptes',ul(['L\'inscription est réservée aux personnes majeures (18 ans et plus).','L\'identité de chaque membre est vérifiée par un prestataire spécialisé (pièce d\'identité et selfie vidéo) avant toute réservation.','Les accompagnateurs passent en plus un entretien vidéo avec l\'équipe Side by Side, font valider leurs photos et déposent une attestation d\'assurance responsabilité civile à jour couvrant leur activité rémunérée.','Chaque membre garantit l\'exactitude de ses informations et la confidentialité de son mot de passe.','Un seul compte par personne.']))
     +h('4. Rôle de Zyntell',p(`${C.name} est le prestataire des services vendus sur ${C.brand}. Pour les réaliser, ${C.name} fait appel à des accompagnateurs indépendants, qui interviennent en tant que sous-traitants et restent libres d'accepter ou de refuser chaque mission.`))
     +h('5. Photos et profils',p('Les photos doivent être réelles, récentes et représenter uniquement le membre, sans retouche ni création par intelligence artificielle. Une photo suspecte est masquée en attendant une vérification humaine. Une fois validées, les photos sont verrouillées.'))
     +h('6. Sécurité',ul(['Premier rendez-vous recommandé dans un lieu public.','Code de rencontre à usage unique, validation du début et de la fin de mission par les deux parties.','Bouton SOS, code de détresse et point sécurité pendant la mission.','En cas de danger, appelez d\'abord le 112.']))
@@ -2080,7 +2081,7 @@ function legalDoc(id){const C=LEGAL_CO,st=S.settings,R=st.cancel,h=(t,b)=>`<h3>$
     +h('1. Objet',p(`Zyntell confie à l'Accompagnateur, en sous-traitance, la réalisation de prestations d'accompagnement vendues sur ${C.brand}.`))
     +h('2. Indépendance',ul(['L\'Accompagnateur est libre d\'accepter ou de refuser chaque mission, sans justification.','Il fixe lui-même son tarif horaire, ses disponibilités et les activités qu\'il propose.','Il organise librement sa prestation, dans le respect de la charte.','Il peut travailler pour d\'autres clients ou plateformes. Aucun lien de subordination n\'existe entre les parties.']))
     +h('3. Rémunération',p(`Pour chaque mission, l'Accompagnateur perçoit le prix de la prestation diminué d'une commission de ${st.compFee} % au profit de Zyntell. Le montant net est affiché dans l'application avant l'acceptation. Il est versé sur son compte bancaire après la validation de fin de mission par les deux parties. Les pourboires lui sont reversés en totalité. Zyntell lui remet une facture récapitulative pour chaque mission.`))
-    +h('4. Obligations de l\'Accompagnateur',ul(['Déclarer ses revenus et payer ses cotisations sociales et impôts.','Disposer d\'une assurance responsabilité civile professionnelle (recommandée).','Publier uniquement des photos réelles de lui-même.','Respecter la charte de confiance et de sécurité.','Valider le début et la fin de chaque mission dans l\'application.']))
+    +h('4. Obligations de l\'Accompagnateur',ul(['Déclarer ses revenus et payer ses cotisations sociales et impôts.','Disposer d\'une assurance responsabilité civile couvrant son activité rémunérée et déposer dans l\'application une attestation à jour (obligatoire : sans attestation valide, aucune réservation ne peut être reçue).','Publier uniquement des photos réelles de lui-même.','Respecter la charte de confiance et de sécurité.','Valider le début et la fin de chaque mission dans l\'application.']))
     +h('5. Non-contournement',p('Pendant 12 mois après une mission, l\'Accompagnateur s\'interdit de proposer ses services directement à un client rencontré via '+C.brand+'. En cas de manquement, Zyntell peut facturer des frais de mise en relation et mettre fin au contrat.'))
     +h('6. Confidentialité',p('L\'Accompagnateur garde confidentielles les informations sur les clients, notamment leurs coordonnées et leurs habitudes.'))
     +h('7. Durée et fin du contrat',p('Le contrat est conclu pour une durée indéterminée. Chaque partie peut y mettre fin à tout moment, sous réserve d\'honorer les missions déjà acceptées. Zyntell peut le résilier immédiatement en cas de manquement grave à la charte.'));
@@ -3366,6 +3367,134 @@ function v29Init(){if(window.__v29)return;window.__v29=1;i18nV29();
   splashShow();setTimeout(splashHide,LIVE?1400:700)}
 
 
+/* =====================================================================
+   V3.0 — Application mobile : assistance intégrée, accès administrateur retiré,
+   photos des accompagnateurs vérifiées avant publication
+   ===================================================================== */
+var ADMIN_TABS = ['dashboard'];
+var ADMIN_VIEWS = { dashboard: () => '' };
+var ADMIN_WEB = !!(window.SBS_ADMIN_WEB);
+
+/* ---------- Comptes de l'équipe : refusés dans l'application mobile ---------- */
+function adminRefusedPage() {
+  if (LIVE && !S._admOut) { S._admOut = true; setTimeout(async () => { try { await SB.auth.signOut(); } catch (e) {} ME = null; S.role = null; S.adminOk = false; S._admOut = false; toast('Les comptes de l\'équipe Side by Side se connectent uniquement à l\'espace de gestion, sur ordinateur.', true); render(); }, 0); }
+  return `<section class="section"><div class="card stack"><h2>Espace réservé à l'équipe</h2><p class="muted">Les comptes de l'équipe Side by Side se connectent uniquement à l'espace de gestion sécurisé, sur ordinateur.</p></div></section>`;
+}
+
+/* ---------- Assistance : mes demandes ---------- */
+const SUP_CAT = [['reservation', 'Une réservation'], ['paiement', 'Paiement ou remboursement'], ['compte', 'Mon compte'], ['securite', 'Sécurité'], ['accompagnateur', 'Mon activité d\'accompagnateur'], ['technique', 'Problème technique'], ['suppression', 'Suppression de compte'], ['autre', 'Autre question']];
+const SUP_ST = { ouverte: ['Envoyée', 'info'], en_cours: ['En cours de traitement', 'warn'], repondue: ['Réponse reçue', 'ok'], resolue: ['Résolue', 'muted'], fermee: ['Fermée', 'muted'] };
+function supState() { if (!S.sup) S.sup = { list: [], loaded: false, msgs: {}, busy: false }; return S.sup; }
+function supDemoSeed() {
+  const Q = supState(); if (Q.loaded) return; Q.loaded = true;
+  const t0 = now() - 2 * DAY;
+  Q.list = [{ id: 'sd1', ref: 'AS-1001', category: 'paiement', subject: 'Question sur ma facture', status: 'repondue', created_at: new Date(t0).toISOString(), last_message_at: new Date(t0 + 3 * 3600e3).toISOString() }];
+  Q.msgs.sd1 = [{ from_staff: false, body: 'Bonjour, je ne trouve pas la facture de ma dernière sortie.', created_at: new Date(t0).toISOString() },
+                { from_staff: true, body: 'Bonjour, vos factures se trouvent dans Réservations, puis Détails de la réservation, rubrique Facture. Bonne journée !', created_at: new Date(t0 + 3 * 3600e3).toISOString() }];
+}
+async function supLoad() {
+  const Q = supState(); if (!LIVE) { supDemoSeed(); return; }
+  if (Q.busy) return; Q.busy = true;
+  const { data, error } = await SB.from('support_tickets').select('id, ref, category, subject, status, created_at, last_message_at, booking_id').order('last_message_at', { ascending: false }).limit(30);
+  Q.busy = false; Q.loaded = true; if (!error) Q.list = data || []; render();
+}
+async function supLoadMsgs(id) {
+  const Q = supState(); if (!LIVE) return;
+  const { data } = await SB.from('support_messages').select('from_staff, body, created_at').eq('ticket_id', id).order('created_at');
+  Q.msgs[id] = data || []; render();
+}
+function supCard() {
+  const Q = supState(); if (!Q.loaded) setTimeout(supLoad, 0);
+  const rows = Q.list.map(t => { const st = SUP_ST[t.status] || [t.status, 'muted'];
+    return `<button class="accrow" data-a="sup-open" data-id="${esc(t.id)}"><span class="grow"><b>${esc(t.subject)}</b><small>${esc(t.ref)} · ${fdt(Date.parse(t.last_message_at || t.created_at))}</small></span><span class="pill t-${st[1]}">${esc(st[0])}</span></button>`; }).join('');
+  return `<section class="section"><div class="card stack"><div class="row"><h3 class="grow">Mes demandes d'assistance</h3><button class="btn pri" data-a="sup-new">Nouvelle demande</button></div>
+  ${Q.loaded ? (rows || '<p class="sm muted">Aucune demande pour le moment.</p>') : '<p class="sm muted">Chargement…</p>'}
+  <p class="xs muted">Réponse sous 24 h ouvrées, ici et dans vos notifications. Vous pouvez aussi écrire à contact@zyntell.fr. En cas de danger, appelez le 112.</p></div></section>`;
+}
+EXTRA_SHEETS.supnew = (s, h) => {
+  const refs = (S.bookings || []).slice().sort((a, b) => b.start - a.start).slice(0, 15).map(b => b.ref).filter(Boolean);
+  return h('Nouvelle demande d\'assistance', 'L\'équipe Side by Side vous répond sous 24 h ouvrées') + `<form class="stack" data-form="sup-new">
+  <div class="field"><label for="sup-cat">Sujet</label><select id="sup-cat" name="category">${SUP_CAT.map(([k, l]) => `<option value="${k}">${esc(l)}</option>`).join('')}</select></div>
+  <div class="field"><label for="sup-ref">Réservation concernée (facultatif)</label><select id="sup-ref" name="ref"><option value="">Aucune</option>${refs.map(r => `<option>${esc(r)}</option>`).join('')}</select></div>
+  <div class="field"><label for="sup-sub">Titre</label><input id="sup-sub" name="subject" maxlength="120" placeholder="Ex. : Remboursement non reçu"></div>
+  <div class="field"><label for="sup-body">Votre message</label><textarea id="sup-body" name="body" rows="5" maxlength="3000" placeholder="Décrivez votre demande. N'indiquez jamais de mot de passe ni de numéro de carte."></textarea></div>
+  <p class="note t-bad sm" id="sup-err" hidden></p><button class="btn pri full">Envoyer ma demande</button></form>`;
+};
+EXTRA_SHEETS.supthread = (s, h) => {
+  const Q = supState(), t = Q.list.find(x => x.id === s.id); if (!t) return h('Demande', '') + '<p class="muted">Demande introuvable.</p>';
+  const m = Q.msgs[t.id], st = SUP_ST[t.status] || [t.status, 'muted'];
+  if (!m && LIVE) setTimeout(() => supLoadMsgs(t.id), 0);
+  return h(esc(t.subject), `${esc(t.ref)} · ${esc((SUP_CAT.find(c => c[0] === t.category) || [0, ''])[1])}`) + `<div class="row"><span class="pill t-${st[1]}">${esc(st[0])}</span></div>
+  <div class="stack">${(m || []).map(x => `<div class="card sm ${x.from_staff ? '' : 'mine'}"><b>${x.from_staff ? 'Assistance Side by Side' : 'Vous'}</b> <span class="xs muted">${fdt(Date.parse(x.created_at))}</span><p class="ugc" style="margin:.3em 0 0;white-space:pre-wrap">${esc(x.body)}</p></div>`).join('') || '<p class="muted sm">Chargement…</p>'}</div>
+  ${t.status === 'fermee' ? '<p class="xs muted">Cette demande est fermée. Ouvrez une nouvelle demande si besoin.</p>' : `<form class="stack" data-form="sup-reply" data-id="${esc(t.id)}"><div class="field"><label for="sup-rep">Répondre</label><textarea id="sup-rep" name="body" rows="3" maxlength="3000"></textarea></div><p class="note t-bad sm" id="sup-err" hidden></p><div class="pbar"><button class="btn pri">Envoyer</button>${t.status !== 'resolue' ? `<button class="btn ghost" type="button" data-a="sup-resolve" data-id="${esc(t.id)}">Ma demande est résolue</button>` : ''}</div></form>`}`;
+};
+function supErr(m) { const p = document.getElementById('sup-err'); if (p) { p.textContent = tr(m); p.hidden = false; } else toast(m, true); }
+
+function v30Click(a, el, id, v, b) {
+  switch (a) {
+    case 'role': if (v === 'admin') return true; return false;   // plus aucun accès administrateur dans l'application
+    case 'sup-new': open('supnew'); return true;
+    case 'sup-open': open('supthread', { id }); return true;
+    case 'sup-resolve': {
+      const Q = supState();
+      if (!LIVE) { const t = Q.list.find(x => x.id === id); if (t) t.status = 'resolue'; toast('Demande marquée comme résolue.'); render(); return true; }
+      SB.rpc('support_resolve', { p_ticket: id }).then(({ error }) => { if (error) return toast(error.message, true); toast('Demande marquée comme résolue.'); supLoad(); });
+      return true;
+    }
+    default: return false;
+  }
+}
+function v30Submit(k, f, d) {
+  if (k === 'sup-new') {
+    const subject = (d.subject || '').trim(), body = (d.body || '').trim();
+    if (subject.length < 3) return supErr('Indiquez un titre (3 caractères minimum).'), true;
+    if (body.length < 10) return supErr('Décrivez votre demande (10 caractères minimum).'), true;
+    const Q = supState();
+    if (!LIVE) { const id = 'sd' + (Q.list.length + 2), ref = 'AS-' + (1001 + Q.list.length);
+      Q.list.unshift({ id, ref, category: d.category, subject, status: 'ouverte', created_at: new Date().toISOString(), last_message_at: new Date().toISOString() });
+      Q.msgs[id] = [{ from_staff: false, body, created_at: new Date().toISOString() }];
+      S.sheet = null; toast(`Demande ${ref} envoyée. L'équipe vous répondra ici.`); render(); return true; }
+    SB.rpc('support_open', { p_category: d.category, p_subject: subject, p_body: body, p_booking_ref: d.ref || null }).then(({ data, error }) => {
+      if (error) return supErr(error.message);
+      S.sheet = null; toast(`Demande ${data && data.ref || ''} envoyée. L'équipe vous répondra ici.`); supLoad(); });
+    return true;
+  }
+  if (k === 'sup-reply') {
+    const body = (d.body || '').trim(), id = f.dataset.id; if (body.length < 2) return supErr('Message vide.'), true;
+    const Q = supState();
+    if (!LIVE) { (Q.msgs[id] = Q.msgs[id] || []).push({ from_staff: false, body, created_at: new Date().toISOString() }); const t = Q.list.find(x => x.id === id); if (t) t.status = 'ouverte'; render(); return true; }
+    SB.rpc('support_reply', { p_ticket: id, p_body: body }).then(({ error }) => { if (error) return supErr(error.message); toast('Message envoyé.'); supLoadMsgs(id); supLoad(); });
+    return true;
+  }
+  return false;
+}
+
+/* ---------- Photos validées des accompagnateurs (liens temporaires) ---------- */
+async function livePhotos() {
+  if (!LIVE || !SB) return;
+  const list = (S.companions || []).filter(c => c._photo && !PHOTOS[c.id]);
+  if (!list.length) return;
+  const { data } = await SB.storage.from('photos').createSignedUrls(list.map(c => c._photo), 3600);
+  (data || []).forEach((x, i) => { if (x && x.signedUrl) PHOTOS[list[i].id] = x.signedUrl; });
+  render();
+}
+
+function v30Init() {
+  if (window.__v30) return; window.__v30 = 1;
+  const add = { fr: ['Mes demandes d\'assistance', 'Nouvelle demande', 'Nouvelle demande d\'assistance', 'Envoyer ma demande', 'Ma demande est résolue', 'Réponse reçue', 'Résolue', 'Fermée', 'Envoyée', 'En cours de traitement'] };
+  void add;
+  // L'écran « Aide et assistance » affiche les demandes de l'utilisateur
+  const _as = accScreen; accScreen = (k, role, sec) => { const h = _as(k, role, sec); return k === 'aide' ? supCard() + h : h; };
+  // Mobile : un compte administrateur n'ouvre jamais l'administration
+  if (!ADMIN_WEB) { mfa = () => adminRefusedPage(); }
+  // Photos validées dans l'annuaire (mode connecté)
+  if (LIVE && typeof adaptCompanion === 'function') {
+    const _ac = adaptCompanion; adaptCompanion = r => { const c = _ac(r); if (r && r.photo_path) c._photo = r.photo_path; return c; };
+    const _ll = liveLoad; liveLoad = async (...x) => { const r = await _ll(...x); livePhotos(); return r; };
+  }
+}
+
+function v30AdminClick(){return false}function v30AdminSubmit(){return false}function v30AdminInit(){}
 /* ================= V2.5 — Mode connecté, lot 2 : mission, SOS, notifications, identité, RGPD, administration sécurisée =================
    Tout ce qui suit ne s'exécute qu'en mode connecté (application native). La démo en ligne ne change pas. */
 const LIVE_ADM={data:null,busy:false};

@@ -61,7 +61,7 @@ function totp(secret) {
 }
 // Espace de gestion : connexion par la fonction admin-auth (mot de passe puis code TOTP), comme le fait /gestion
 let lastWin = 0;
-async function code(secret) { let w = Math.floor(Date.now() / 30000); if (w <= lastWin) { await sleep((lastWin + 1) * 30000 - Date.now() + 300); w = Math.floor(Date.now() / 30000); } lastWin = w; return totp(secret); }
+async function totpNow(secret) { let w = Math.floor(Date.now() / 30000); if (w <= lastWin) { await sleep((lastWin + 1) * 30000 - Date.now() + 300); w = Math.floor(Date.now() / 30000); } lastWin = w; return totp(secret); }
 async function authFn(body, token) {
   const r = await fetch(`${URL}/functions/v1/admin-auth`, { method: "POST", headers: { "Content-Type": "application/json", apikey: ANON, Authorization: `Bearer ${token ?? ANON}`, "User-Agent": "integration-test" }, body: JSON.stringify(body) });
   let j = {}; try { j = await r.json(); } catch (_) {}
@@ -70,13 +70,13 @@ async function authFn(body, token) {
 async function adminLogin(u, secret, factorId, password = "Test-Passw0rd!") {
   const l = await authFn({ action: "login", email: u.email, password });
   if (!l.session) return l;
-  const v = await authFn({ action: "mfa_verify", access_token: l.session.access_token, refresh_token: l.session.refresh_token, code: await code(secret), factor_id: factorId ?? l.totp?.factor_id });
+  const v = await authFn({ action: "mfa_verify", access_token: l.session.access_token, refresh_token: l.session.refresh_token, code: await totpNow(secret), factor_id: factorId ?? l.totp?.factor_id });
   if (v.session) await u.c.auth.setSession({ access_token: v.session.access_token, refresh_token: v.session.refresh_token });
   return v;
 }
 async function stepup(u, secret) {
   const { data: s } = await u.c.auth.getSession();
-  const v = await authFn({ action: "stepup", code: await code(secret), refresh_token: s.session.refresh_token }, s.session.access_token);
+  const v = await authFn({ action: "stepup", code: await totpNow(secret), refresh_token: s.session.refresh_token }, s.session.access_token);
   if (v.session) await u.c.auth.setSession({ access_token: v.session.access_token, refresh_token: v.session.refresh_token });
   return v;
 }
@@ -289,7 +289,7 @@ async function confirmedBooking(client, comp, dayN, extra = {}) {
   if (enrErr) console.log("MFA enroll", enrErr.message);
   const ADM_SECRET = enr.totp.secret;
   const { data: ch } = await adm.c.auth.mfa.challenge({ factorId: enr.id });
-  await adm.c.auth.mfa.verify({ factorId: enr.id, challengeId: ch.id, code: await code(ADM_SECRET) });
+  await adm.c.auth.mfa.verify({ factorId: enr.id, challengeId: ch.id, code: await totpNow(ADM_SECRET) });
   r = await call(adm, "admin-action", { action: "overview" });
   check("K10", "TOTP validé hors espace de gestion (appel direct au service d'authentification) → refusé : aucune session de gestion", r.status === 401, r.error);
   const lg = await adminLogin(adm, ADM_SECRET);
@@ -407,7 +407,7 @@ async function confirmedBooking(client, comp, dayN, extra = {}) {
   const l3 = await authFn({ action: "login", email: nu.email, password: tmp });
   await nu.c.auth.setSession(l3.session ?? { access_token: "", refresh_token: "" });
   const { data: enr3 } = await nu.c.auth.mfa.enroll({ factorType: "totp", friendlyName: "n" });
-  const v3 = await authFn({ action: "mfa_verify", access_token: l3.session?.access_token, refresh_token: l3.session?.refresh_token, code: await code(enr3.totp.secret), factor_id: enr3.id });
+  const v3 = await authFn({ action: "mfa_verify", access_token: l3.session?.access_token, refresh_token: l3.session?.refresh_token, code: await totpNow(enr3.totp.secret), factor_id: enr3.id });
   await nu.c.auth.setSession(v3.session);
   const blocked = await call(nu, "admin-action", { action: "dashboard" });
   const weak = await authFn({ action: "change_password", password: "court" }, v3.session?.access_token);

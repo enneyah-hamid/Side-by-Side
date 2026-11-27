@@ -115,7 +115,7 @@ export function requireSuper(me: AdminCtx) {
 }
 // Opération sensible : un code TOTP doit avoir été saisi il y a moins de 5 minutes (nouvelle authentification)
 export function requireStepUp(me: AdminCtx) {
-  const t = Math.max(0, ...me.amr.filter((x) => x.method === "totp").map((x) => Number(x.timestamp) || 0));
+  const t = Math.max(0, ...me.amr.filter((x: { method: string; timestamp: number }) => x.method === "totp").map((x: { method: string; timestamp: number }) => Number(x.timestamp) || 0));
   if (!t || Date.now() / 1000 - t > STEPUP_MAX_S) throw new HttpError(428, "Confirmation requise : saisissez un nouveau code de double authentification.");
 }
 // Pour les fonctions partagées (ex. annulation) : contexte administrateur si l'appel vient de l'espace de gestion, sinon null
