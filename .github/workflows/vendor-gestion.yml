@@ -6,16 +6,22 @@ on:
   push:
     branches: [mission3-admin]
     paths: [".github/workflows/vendor-gestion.yml"]
+permissions:
+  contents: write
 jobs:
   vendor:
     runs-on: ubuntu-latest
     steps:
+      - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with: { node-version: 20 }
       - run: |
           mkdir v && cd v && npm init -y >/dev/null && npm i --silent @supabase/supabase-js@2.45.4
-          mkdir -p ../out && cp node_modules/@supabase/supabase-js/dist/umd/supabase.js ../out/supabase.js
+          mkdir -p ../out ../gestion/vendor && cp node_modules/@supabase/supabase-js/dist/umd/supabase.js ../out/supabase.js
           cp node_modules/@supabase/supabase-js/LICENSE ../out/LICENSE-supabase-js.txt 2>/dev/null || true
-          cd ../out && sha256sum supabase.js | tee supabase.js.sha256
-      - uses: actions/upload-artifact@v4
-        with: { name: supabase-umd, path: out/ }
+          cd ../out && sha256sum supabase.js | tee supabase.js.sha256 && cp supabase.js supabase.js.sha256 LICENSE-supabase-js.txt ../gestion/vendor/ 2>/dev/null || cp supabase.js supabase.js.sha256 ../gestion/vendor/
+      - name: Déposer le fichier dans la branche
+        run: |
+          rm -rf v out
+          git config user.name "github-actions[bot]"; git config user.email "41898341+github-actions[bot]@users.noreply.github.com"
+          git add gestion/vendor && (git diff --cached --quiet || (git commit -m "Gestion : supabase-js 2.45.4 auto-hébergé (UMD)" && git push))
