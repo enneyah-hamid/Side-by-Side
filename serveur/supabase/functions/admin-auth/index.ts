@@ -83,7 +83,7 @@ serve(async (req) => {
       if (error || !data.session) { await fail(req, email, null, "login_fail"); throw new HttpError(401, GENERIC); }
       const acc = await isActiveAdmin(data.user.id);
       if (!acc) {   // compte existant mais non administrateur : même réponse qu'un mauvais mot de passe
-        await c.auth.signOut().catch(() => {});
+        await c.auth.signOut({ scope: "local" }).catch(() => {});   // ne ferme que cette tentative, pas l'application mobile du membre
         await fail(req, email, data.user.id, "login_fail");
         throw new HttpError(401, GENERIC);
       }

@@ -357,7 +357,7 @@ async function confirmedBooking(client, comp, dayN, extra = {}) {
   const { error: rest4 } = await client.c.rpc("adm_users", { p_role: "", p_q: "", p_status: "", p_limit: 50, p_offset: 0 });
   r = await call(client, "admin-action", { action: "users" });
   const r4 = await call(comp, "admin-action", { action: "finance" });
-  check("M10", "Client et accompagnateur : aucune donnée d'administration, même en appelant directement les API", (rest1 ?? []).length === 0 && (rest2 ?? []).length === 0 && !!rest3 && !!rest4 && r.status === 403 && r4.status === 403);
+  check("M10", "Client et accompagnateur : aucune donnée d'administration, même en appelant directement les API", (rest1 ?? []).length === 0 && (rest2 ?? []).length === 0 && !!rest3 && !!rest4 && r.status === 403 && r4.status === 403, `${r.status}/${r4.status}`);
   const { error: imm } = await svc.from("audit_log").delete().gte("id", 0);
   check("M11", "Journal inviolable : suppression refusée même avec la clé serveur", !!imm);
   // Assistance intégrée
@@ -413,7 +413,7 @@ async function confirmedBooking(client, comp, dayN, extra = {}) {
   const weak = await authFn({ action: "change_password", password: "court" }, v3.session?.access_token);
   const strong = await authFn({ action: "change_password", password: "Vrai-Mot-De-Passe-2026!#" }, v3.session?.access_token);
   const afterPw = await call(nu, "admin-action", { action: "dashboard" });
-  check("M21", "Nouvel administrateur : mot de passe provisoire à changer (fort obligatoire) avant tout accès", !!tmp && blocked.status === 403 && weak.status === 400 && strong.ok && afterPw.status === 200, `${blocked.error} / ${weak.error}`);
+  check("M21", "Nouvel administrateur : mot de passe provisoire à changer (fort obligatoire) avant tout accès", !!tmp && blocked.status === 403 && weak.status === 400 && strong.ok && afterPw.status === 200, `${blocked.error} / ${weak.error} / ${strong.status} ${strong.error ?? ''} / ${afterPw.status} ${afterPw.error ?? ''}`);
   const auditTxt = JSON.stringify((await svc.from("audit_log").select("action").order("id", { ascending: false }).limit(30)).data);
   const evTxt = JSON.stringify((await svc.from("admin_auth_events").select("*")).data);
   check("M22", "Aucun mot de passe (provisoire ou saisi) dans les journaux", !auditTxt.includes(tmp) && !evTxt.includes(tmp) && !evTxt.includes("Vrai-Mot-De-Passe") && !evTxt.includes("faux-"));

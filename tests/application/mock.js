@@ -5,8 +5,8 @@ const db={users:[{id:'uA',email:'admin@test.fr',pw:'Motdepasse1!',confirmed:true
            {id:'uP',role:'companion',first_name:'Camille',last_name:'D',city:'Paris',identity_verified:true,suspended:false,birth_date:'1992-03-04'},
            {id:'uA',role:'admin',first_name:'Hamid',last_name:'E',city:'Maromme',identity_verified:true,suspended:false,birth_date:'1980-01-01'},
            {id:'uN',role:'client',first_name:'Paul',last_name:'N',city:'Paris',identity_verified:false,suspended:false,birth_date:'1985-01-01'}],
- companions:[{id:'uP',first_name:'Camille',city:'Paris',area:'Le Marais',bio:'Guide passionnée',hourly_rate:35,tier:'Standard',languages:['Français','Anglais'],categories:['shopping','musees','seniors'],included:[],excluded:[],work_days:[0,1,2,3,4,5,6],hour_from:9,hour_to:21,rating:5,reviews:2}],
- companion_insurances:[],open_requests:[],request_offers:[],bookings:[],messages:[],notifications:[],tax_certificates:[{year:2025,version:1,data:{quarters:[{missions:1,consideration:61,fees:14,taxes:0},{missions:0,consideration:0,fees:0,taxes:0},{missions:0,consideration:0,fees:0,taxes:0},{missions:1,consideration:84,fees:21,taxes:0}],missions:2,consideration:145,fees:35},published_at:'2026-01-20T10:00:00Z'}],companions_rows:[],identity_checks:[],uploads:[],calls:[],seq:1100,aal:'aal1',factor:null};
+ companions:[{id:'uP',first_name:'Camille',city:'Paris',area:'Le Marais',bio:'Guide passionnée',hourly_rate:35,tier:'Standard',languages:['Français','Anglais'],categories:['shopping','musees','seniors'],included:[],excluded:[],work_days:[0,1,2,3,4,5,6],hour_from:9,hour_to:21,rating:5,reviews:2,photo_path:'uP/avatar-1.jpg'}],
+ companion_insurances:[],support_tickets:[],support_messages:[],open_requests:[],request_offers:[],bookings:[],messages:[],notifications:[],tax_certificates:[{year:2025,version:1,data:{quarters:[{missions:1,consideration:61,fees:14,taxes:0},{missions:0,consideration:0,fees:0,taxes:0},{missions:0,consideration:0,fees:0,taxes:0},{missions:1,consideration:84,fees:21,taxes:0}],missions:2,consideration:145,fees:35},published_at:'2026-01-20T10:00:00Z'}],companions_rows:[],identity_checks:[],uploads:[],calls:[],seq:1100,aal:'aal1',factor:null};
 let session=null;const subs=[];window.__db=db;
 const ok=d=>Promise.resolve({data:d,error:null}),ko=m=>Promise.resolve({data:null,error:{message:m}}),ko2=(st,m)=>Promise.resolve({data:null,error:{message:m,context:{json:async()=>({error:m})}}});
 const prof=()=>db.profiles.find(p=>p.id===session.user.id);
@@ -23,6 +23,9 @@ function rpc(name){const me=session&&session.user.id;
   if(name==='tax_profile_issues')return ok([{field:'NIF',message:'Numéro fiscal manquant (il figure sur votre avis d\'impôt)',blocking:false}]);
   if(name==='my_tax_breakdown')return ok([{missions:3,gross:245,commission:49,annex:0,tips:5,net_paid:201,declarable:201,cancelled:1,taxes:0}]);
   if(name==='companions_directory')return ok(db.companions);
+  if(name==='support_open'){const a=arguments[1]||{};if(String(a.p_body||'').trim().length<10)return ko('Décrivez votre demande (10 caractères minimum)');const t={id:'tk'+(db.support_tickets.length+1),ref:'AS-'+(1001+db.support_tickets.length),user_id:me,category:a.p_category,subject:a.p_subject,status:'ouverte',created_at:new Date().toISOString(),last_message_at:new Date().toISOString()};db.support_tickets.push(t);db.support_messages.push({ticket_id:t.id,from_staff:false,body:a.p_body,created_at:t.created_at});db.calls.push({fn:'rpc:support_open',body:a});return ok(t)}
+  if(name==='support_reply'){const a=arguments[1]||{};db.support_messages.push({ticket_id:a.p_ticket,from_staff:false,body:a.p_body,created_at:new Date().toISOString()});return ok(null)}
+  if(name==='support_resolve'){const t=db.support_tickets.find(x=>x.id===(arguments[1]||{}).p_ticket);if(t)t.status='resolue';return ok(null)}
   if(name==='my_bookings')return ok(db.bookings.filter(b=>b.client_id===me||b.companion_id===me).map(b=>({booking:b,client_first_name:db.profiles.find(p=>p.id===b.client_id).first_name,companion_first_name:db.profiles.find(p=>p.id===b.companion_id).first_name})));
   return ko('unknown rpc')}
 function invoke(fn,{body}){const me=session&&session.user.id;let r;db.calls.push({fn,body});
@@ -73,7 +76,7 @@ window.supabase={createClient(){return{
     exchangeCodeForSession:(code)=>{if(code!=='bon-code')return ko('invalid flow state');const u=db.users.find(x=>x.id===db.codeUser);session={user:{id:u.id,email:u.email,email_confirmed_at:'2026-11-26'}};return ok({session})},
     setSession:()=>ok({}),updateUser:(p)=>{db.updated=p;return ok({user:session&&session.user})}},
   from:q,rpc,functions:{invoke},
-  storage:{from:()=>({upload:(path)=>{db.uploads.push(path);return ok({path})}})},
+  storage:{from:()=>({upload:(path)=>{db.uploads.push(path);return ok({path})},createSignedUrls:(paths)=>ok(paths.map(x=>({path:x,signedUrl:'data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 4 4%22%3E%3Crect width=%224%22 height=%224%22 fill=%22%23D4AF37%22/%3E%3C/svg%3E'})))})},
   channel(){const ch={on(){return ch},subscribe(){subs.push(()=>{});return ch}};return ch},removeChannel(){}}}};
 window.SBS_CONFIG={url:'https://test.supabase.co',key:'sb_publishable_test'};
 const _f=window.fetch;window.fetch=(u,o)=>String(u).includes('/auth/v1/settings')?Promise.resolve(new Response(JSON.stringify({external:{google:!!db.googleOn,apple:false,email:true}}),{headers:{'Content-Type':'application/json'}})):_f(u,o);
