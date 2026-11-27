@@ -1,0 +1,21 @@
+name: Bibliothèque Supabase pour l'espace de gestion
+# Produit vendor/supabase.js (version figée, empreinte SHA-256 publiée) pour l'espace /gestion,
+# afin qu'aucun script ne soit chargé depuis un CDN tiers.
+on:
+  workflow_dispatch:
+  push:
+    branches: [mission3-admin]
+    paths: [".github/workflows/vendor-gestion.yml"]
+jobs:
+  vendor:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/setup-node@v4
+        with: { node-version: 20 }
+      - run: |
+          mkdir v && cd v && npm init -y >/dev/null && npm i --silent @supabase/supabase-js@2.45.4
+          mkdir -p ../out && cp node_modules/@supabase/supabase-js/dist/umd/supabase.js ../out/supabase.js
+          cp node_modules/@supabase/supabase-js/LICENSE ../out/LICENSE-supabase-js.txt 2>/dev/null || true
+          cd ../out && sha256sum supabase.js | tee supabase.js.sha256
+      - uses: actions/upload-artifact@v4
+        with: { name: supabase-umd, path: out/ }
