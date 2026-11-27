@@ -424,7 +424,7 @@ async function confirmedBooking(client, comp, dayN, extra = {}) {
   r = await callA("admin-action", { action: "admin_revoke", user_id: adm2.id });
   const gone = await adminLogin(adm2, SEC2, enr2.id);
   check("M23", "Accès administrateur retiré : connexion à l'espace de gestion impossible", r.ok && !gone.session && (await row("profiles", adm2.id)).role === "client");
-  const out = await authFn({ action: "logout" }, v3.session?.access_token);
+  const out = await authFn({ action: "logout" }, v4.session?.access_token);
   r = await call(nu, "admin-action", { action: "ping" });
   check("M24", "Déconnexion : session fermée, l'API refuse ensuite l'accès", out.ok && r.status === 401);
   }

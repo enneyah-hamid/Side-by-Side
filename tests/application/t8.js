@@ -4,8 +4,7 @@ const login=async(p,e)=>{await p.fill('#lv-mail',e);await p.fill('#lv-pw','Motde
 let p=await page();await login(p,'camille@test.fr');await p.evaluate(()=>{S.tab='earnings';render()});await p.waitForTimeout(500);let t=(await p.evaluate(()=>document.body.innerText)).toLowerCase();
 ck('L01','Mode connecté : revenus de l\'année chargés depuis le serveur',t.includes('mes documents fiscaux')&&/revenus nets/.test(t)&&t.includes('3'),'');
 ck('L02','Mode connecté : attestation publiée listée',t.includes('attestation 2025'));
-p=await page();await login(p,'admin@test.fr');await p.fill('#mfa-code','123456');await p.click('form[data-form="live-mfa"] button');await p.waitForTimeout(900);
-await p.evaluate(()=>document.querySelector('[data-a="dac7"]').click());await p.waitForTimeout(700);t=(await p.evaluate(()=>document.querySelector('.sheet')?document.querySelector('.sheet').innerText:'')).toLowerCase();
-ck('L03','Mode connecté : tableau de bord DAC7 de l\'admin (avec double authentification)',t.includes('fiscalité et déclarations dac7')&&t.includes('812')&&!t.includes('fichier de test'));
-ck('L04','Mode connecté : génération bloquée tant qu\'une information obligatoire manque',await p.evaluate(()=>document.querySelector('[data-a="dac7-generate"]').disabled));
+// v3.0 : la fiscalité DAC7 côté équipe est dans l'espace de gestion (/gestion : gestion.js G46, serveur : integration.mjs X01-X..)
+p=await page();await login(p,'admin@test.fr');await p.waitForTimeout(600);
+ck('L03','Application : aucun accès à la fiscalité DAC7 de l\'équipe (déplacée dans l\'espace de gestion)',!(await p.$('[data-a="dac7-generate"]'))&&!(await p.$('#mfa-code')));
 ck('L05','Aucune erreur JavaScript',!errs.length,errs.join('|'));console.log(`${R.filter(Boolean).length}/${R.length} tests réussis`);await b.close()})();

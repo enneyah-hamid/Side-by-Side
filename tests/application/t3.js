@@ -42,18 +42,10 @@ const up=await p.evaluate(()=>({u:__db.uploads,c:__db.identity_checks.length}));
 ck('U11','Pièce et selfie envoyés dans le dossier privé du membre',up.u.length===2&&up.u.every(x=>x.startsWith('uN/'))&&up.c===1,up.u.join(' , '));
 await p.evaluate(()=>{S.accSub='privee';render()});
 ck('U12','Rubrique confidentialité (export / suppression) présente',/Confidentialité et suppression de compte/i.test(await txt(p))&&/Exporter mes données/.test(await txt(p)));
-// 4. Administrateur : MFA obligatoire
+// 4. Administrateur : v3.0 — aucune administration dans l'application (espace /gestion, voir gestion.js et integration.mjs M01-M24)
 p=await page();await login(p,'admin@test.fr');await p.waitForTimeout(600);t=await txt(p);
-ck('A01','Admin : écran de double authentification avec QR code avant tout accès',/Double authentification/.test(t)&&!!(await p.$('img[alt^="QR"]'))&&!/Tableau de bord/.test(t));
-await p.fill('#mfa-code','000000');await p.click('form[data-form="live-mfa"] button');await p.waitForTimeout(500);
-ck('A02','Admin : mauvais code TOTP refusé',/Code invalide/.test(await txt(p))&&!(await p.evaluate(()=>S.adminOk)));
-await p.fill('#mfa-code','123456');await p.click('form[data-form="live-mfa"] button');await p.waitForTimeout(900);t=await txt(p);
-ck('A03','Admin : bon code TOTP → tableau de bord serveur (alertes)',/Tableau de bord/.test(t)&&/code de détresse/.test(t));
-await p.evaluate(()=>{S.tab='users';render()});await p.waitForTimeout(300);await p.evaluate(()=>document.querySelector('[data-a="live-adm-id"][data-v="1"]').click());await p.waitForTimeout(500);
-ck('A04','Admin : validation d\'identité envoyée au serveur',(await p.evaluate(()=>__db.calls.some(c=>c.fn==='admin-action'&&c.body.action==='identity_review'&&c.body.approve))));
-await p.evaluate(()=>{S.tab='disputes';render()});await p.waitForTimeout(300);
-await p.fill('form[data-form="live-adm-decide"] textarea','Retard confirmé par les messages');await p.click('form[data-form="live-adm-decide"] button.pri');await p.waitForTimeout(500);
-ck('A05','Admin : décision de litige motivée envoyée',(await p.evaluate(()=>__db.calls.some(c=>c.fn==='admin-action'&&c.body.action==='dispute_decide'))));
+ck('A01','Compte administrateur dans l\'application : accès refusé, ni QR code ni tableau de bord',!(await p.$('img[alt^="QR"]'))&&!/Tableau de bord/.test(t)&&!(await p.$('#mfa-code')),t.slice(0,100).replace(/\n/g,' '));
+ck('A02','Aucun appel aux fonctions d\'administration depuis l\'application',!(await p.evaluate(()=>__db.calls.some(c=>c.fn==='admin-action'))));
 ck('A06','Aucun code administrateur dans le code source',!(await p.content()).includes('246810'));
 await p.evaluate(()=>{});{const q=await page();await seed(q,'confirmee');await login(q,'sophie@test.fr');await q.evaluate(()=>{api.send(S.bookings[0],'client','Mon numéro 06 12 34 56 78')});await q.waitForTimeout(300);const m=await q.evaluate(()=>__db.messages.map(x=>x.body));ck('U13','Message envoyé au serveur déjà masqué (téléphone)',m.length===1&&/\[masqué\]/.test(m[0])&&!/06 12/.test(m[0]),m.join('|'))}
 console.log('Erreurs JS :',errs.length?errs.join(' | '):'aucune');
