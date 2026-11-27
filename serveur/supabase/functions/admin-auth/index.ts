@@ -154,7 +154,11 @@ serve(async (req) => {
       await admin.from("admin_accounts").update({ must_change_password: false }).eq("user_id", me.id);
       await authEvent("password_changed", { user_id: me.id, email: me.email, req });
       await audit(me.id, "Mot de passe administrateur modifié", me.id);
-      return json({ ok: true });
+      // Toutes les sessions de ce compte sont fermées : reconnexion obligatoire (nouveau mot de passe + code TOTP)
+      await admin.from("admin_sessions").update({ ended_at: new Date().toISOString(), end_reason: "mot_de_passe" }).eq("user_id", me.id).is("ended_at", null);
+      const tok = (req.headers.get("Authorization") ?? "").replace(/^Bearer /, "");
+      await admin.auth.admin.signOut(tok, "global").catch(() => {});
+      return json({ ok: true, relogin: true });
     }
     // 5. Déconnexion (volontaire ou après inactivité constatée par le navigateur)
     case "logout": {

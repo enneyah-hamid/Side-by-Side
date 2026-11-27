@@ -412,8 +412,12 @@ async function confirmedBooking(client, comp, dayN, extra = {}) {
   const blocked = await call(nu, "admin-action", { action: "dashboard" });
   const weak = await authFn({ action: "change_password", password: "court" }, v3.session?.access_token);
   const strong = await authFn({ action: "change_password", password: "Vrai-Mot-De-Passe-2026!#" }, v3.session?.access_token);
+  const oldSess = await call(nu, "admin-action", { action: "dashboard" });      // sessions fermées par le changement de mot de passe
+  const l4 = await authFn({ action: "login", email: nu.email, password: "Vrai-Mot-De-Passe-2026!#" });
+  const v4 = await authFn({ action: "mfa_verify", access_token: l4.session?.access_token, refresh_token: l4.session?.refresh_token, code: await totpNow(enr3.totp.secret), factor_id: enr3.id });
+  await nu.c.auth.setSession(v4.session ?? { access_token: "", refresh_token: "" });
   const afterPw = await call(nu, "admin-action", { action: "dashboard" });
-  check("M21", "Nouvel administrateur : mot de passe provisoire à changer (fort obligatoire) avant tout accès", !!tmp && blocked.status === 403 && weak.status === 400 && strong.ok && afterPw.status === 200, `${blocked.error} / ${weak.error} / ${strong.status} ${strong.error ?? ''} / ${afterPw.status} ${afterPw.error ?? ''}`);
+  check("M21", "Nouvel administrateur : mot de passe provisoire à changer (fort obligatoire), sessions fermées, reconnexion puis accès", !!tmp && blocked.status === 403 && weak.status === 400 && strong.ok && oldSess.status === 401 && afterPw.status === 200, `${blocked.error} / ${weak.error} / ${strong.status} ${strong.error ?? ''} / ${afterPw.status} ${afterPw.error ?? ''}`);
   const auditTxt = JSON.stringify((await svc.from("audit_log").select("action").order("id", { ascending: false }).limit(30)).data);
   const evTxt = JSON.stringify((await svc.from("admin_auth_events").select("*")).data);
   check("M22", "Aucun mot de passe (provisoire ou saisi) dans les journaux", !auditTxt.includes(tmp) && !evTxt.includes(tmp) && !evTxt.includes("Vrai-Mot-De-Passe") && !evTxt.includes("faux-"));

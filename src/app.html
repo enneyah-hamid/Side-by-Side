@@ -3393,7 +3393,7 @@ function supDemoSeed() {
                 { from_staff: true, body: 'Bonjour, vos factures se trouvent dans Réservations, puis Détails de la réservation, rubrique Facture. Bonne journée !', created_at: new Date(t0 + 3 * 3600e3).toISOString() }];
 }
 async function supLoad() {
-  const Q = supState(); if (!LIVE) { supDemoSeed(); return; }
+  const Q = supState(); if (!LIVE) { supDemoSeed(); render(); return; }
   if (Q.busy) return; Q.busy = true;
   const { data, error } = await SB.from('support_tickets').select('id, ref, category, subject, status, created_at, last_message_at, booking_id').order('last_message_at', { ascending: false }).limit(30);
   Q.busy = false; Q.loaded = true; if (!error) Q.list = data || []; render();
@@ -3447,8 +3447,8 @@ function v30Click(a, el, id, v, b) {
 function v30Submit(k, f, d) {
   if (k === 'sup-new') {
     const subject = (d.subject || '').trim(), body = (d.body || '').trim();
-    if (subject.length < 3) return supErr('Indiquez un titre (3 caractères minimum).'), true;
-    if (body.length < 10) return supErr('Décrivez votre demande (10 caractères minimum).'), true;
+    if (subject.length < 3) return (supErr('Indiquez un titre (3 caractères minimum).'), 'stop');
+    if (body.length < 10) return (supErr('Décrivez votre demande (10 caractères minimum).'), 'stop');
     const Q = supState();
     if (!LIVE) { const id = 'sd' + (Q.list.length + 2), ref = 'AS-' + (1001 + Q.list.length);
       Q.list.unshift({ id, ref, category: d.category, subject, status: 'ouverte', created_at: new Date().toISOString(), last_message_at: new Date().toISOString() });
@@ -3460,7 +3460,7 @@ function v30Submit(k, f, d) {
     return true;
   }
   if (k === 'sup-reply') {
-    const body = (d.body || '').trim(), id = f.dataset.id; if (body.length < 2) return supErr('Message vide.'), true;
+    const body = (d.body || '').trim(), id = f.dataset.id; if (body.length < 2) return (supErr('Message vide.'), 'stop');
     const Q = supState();
     if (!LIVE) { (Q.msgs[id] = Q.msgs[id] || []).push({ from_staff: false, body, created_at: new Date().toISOString() }); const t = Q.list.find(x => x.id === id); if (t) t.status = 'ouverte'; render(); return true; }
     SB.rpc('support_reply', { p_ticket: id, p_body: body }).then(({ error }) => { if (error) return supErr(error.message); toast('Message envoyé.'); supLoadMsgs(id); supLoad(); });
@@ -3486,7 +3486,7 @@ function v30Init() {
   // L'écran « Aide et assistance » affiche les demandes de l'utilisateur
   const _as = accScreen; accScreen = (k, role, sec) => { const h = _as(k, role, sec); return k === 'aide' ? supCard() + h : h; };
   // Mobile : un compte administrateur n'ouvre jamais l'administration
-  if (!ADMIN_WEB) { mfa = () => adminRefusedPage(); }
+  if (!ADMIN_WEB) { mfa = () => adminRefusedPage(); if (typeof liveMfaHtml === 'function') liveMfaHtml = () => adminRefusedPage(); if (typeof liveMfaInit === 'function') liveMfaInit = () => {}; }
   // Photos validées dans l'annuaire (mode connecté)
   if (LIVE && typeof adaptCompanion === 'function') {
     const _ac = adaptCompanion; adaptCompanion = r => { const c = _ac(r); if (r && r.photo_path) c._photo = r.photo_path; return c; };

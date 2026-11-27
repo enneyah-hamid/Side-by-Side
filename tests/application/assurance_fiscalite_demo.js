@@ -21,9 +21,11 @@ ck('M06','Réservation impossible : attestation en attente (Giulia) ou expirée 
 r=await ev(()=>{const c=comp('c2');return insOk('c2',now()+5*DAY,2)&&!insOk('c2',Date.parse(c.ins[0].end)+3*DAY,2)});
 ck('M07','Prestation après l\'expiration du contrat refusée, avant acceptée',r);
 // ----- Administrateur : Gestion des assurances -----
+// v3.0 : l'administration n'est plus dans l'application mobile (espace /gestion, voir gestion.js G44-G46).
+// Les écrans d'administration des assurances restent partagés : ils sont ouverts directement ici, en données de démonstration.
 await ev(()=>{S.role='admin';S.adminOk=true;S.tab='dashboard';render()});
-ck('G01','Bouton « Gestion des assurances » sur le tableau de bord',!!(await ev(()=>document.querySelector('[data-a="ins-admin"]'))));
-await p.click('[data-a="ins-admin"]');t=await txt('.sheet');
+ck('G01','Application mobile : aucun bouton d\'administration (gestion déplacée sur /gestion)',!(await ev(()=>document.querySelector('[data-a="ins-admin"]'))));
+await ev(()=>{open('insadmin');render()});t=await txt('.sheet');
 ck('G02','Tableau de bord : assurés, en attente, expirées, sans assurance',['accompagnateurs assurés','en attente de validation','expirent sous 30 jours','attestations expirées','sans assurance valide'].every(x=>t.includes(x)));
 ck('G03','Mention : Side by Side n\'est pas assureur',t.includes("n'est pas assureur"));
 await ev(()=>{const f=document.querySelector('form[data-form="ins-search"]');f.f.value='attente';f.querySelector('button').click()});t=await txt('.sheet');

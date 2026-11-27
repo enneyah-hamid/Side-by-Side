@@ -120,7 +120,22 @@ const URL = process.env.GESTION || 'file:///tmp/gestiontest/index.html';
   ck('G40', 'Mot de passe provisoire : changement obligatoire avant tout accès', /Choisissez votre mot de passe/.test(t) && !(await p.$('nav.tabs')));
   await p.fill('#ap-1', 'court'); await p.fill('#ap-2', 'court'); await p.click('form[data-form="adm-pw"] button'); await p.waitForTimeout(500); const weak = /14 caractères/.test(await txt(p));
   await p.fill('#ap-1', 'Karim-Gestion-2026!#'); await p.fill('#ap-2', 'Karim-Gestion-2026!#'); await p.click('form[data-form="adm-pw"] button'); await p.waitForTimeout(1000);
-  ck('G41', 'Mot de passe faible refusé, mot de passe fort accepté, puis accès', weak && !!(await p.$('nav.tabs')));
+  const relog = /Reconnectez-vous avec votre nouveau mot de passe/.test(await txt(p)) && !(await p.$('nav.tabs'));
+  await login(p, 'nouveau@zyntell.fr', 'Karim-Gestion-2026!#');
+  ck('G41', 'Mot de passe faible refusé ; mot de passe fort accepté, sessions fermées, reconnexion (nouveau mot de passe + TOTP) puis accès', weak && relog && !!(await p.$('nav.tabs')));
+
+  // 4 bis. Assurance responsabilité civile obligatoire et fiscalité DAC7 (depuis le tableau de bord)
+  await tab(p, 'settings'); await p.click('[data-a=adm-logout]'); await p.waitForTimeout(500);
+  await login(p, 'admin@zyntell.fr', 'Dirigeant-Test-2026!'); await tab(p, 'dashboard'); await db(p, () => { __gdb.clock += 6 * 60e3; });
+  await p.evaluate(() => document.querySelector('[data-a="ins-admin"]').click()); await p.waitForTimeout(1000); t = await p.evaluate(() => (document.querySelector('.sheet') || document.body).innerText);
+  ck('G44', 'Assurances : attestations réelles du serveur (assurés, en attente) et règle « obligatoire » rappelée', /Lucas Bernard/.test(t) && /AXA/.test(t) && /bloquées automatiquement/.test(t), t.slice(0, 120).replace(/\n/g, ' '));
+  await p.evaluate(() => document.querySelector('[data-a="ins-ok"][data-id="ins2"]').click()); await p.waitForTimeout(600);
+  const insStep = !!(await p.$('form[data-form="adm-stepup"]')); if (insStep) await stepup(p);
+  await p.waitForTimeout(800);
+  ck('G45', 'Validation d\'une attestation : nouveau code TOTP exigé, puis attestation validée et journalisée', insStep && await db(p, () => __gdb.ins.find(x => x.id === 'ins2').status === 'validee' && __gdb.audit.some(a => /Attestation d'assurance validée/.test(a.action))));
+  await p.evaluate(() => { S.sheet = null; render(); document.querySelector('[data-a="dac7"]').click(); }); await p.waitForTimeout(1200); t = await p.evaluate(() => (document.querySelector('.sheet') || document.body).innerText);
+  ck('G46', 'Fiscalité DAC7 accessible depuis la gestion, chiffres du serveur', /DAC7/.test(t) && /112/.test(t), t.slice(0, 160).replace(/\n/g, ' '));
+  await p.evaluate(() => { S.sheet = null; render(); });
 
   // 5. Affichage
   const over = [];

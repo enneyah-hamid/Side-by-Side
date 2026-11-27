@@ -1,0 +1,32 @@
+# Espace de gestion Side by Side — sidebyside.zyntell.fr/gestion
+# Rappel : l'adresse de cette page n'est PAS une mesure de sécurité. La protection repose sur
+# le serveur (mot de passe + double authentification, session de gestion, droits vérifiés côté Supabase).
+Options -Indexes
+DirectoryIndex index.html
+
+<IfModule mod_rewrite.c>
+  RewriteEngine On
+  RewriteCond %{HTTPS} off
+  RewriteCond %{HTTP:X-Forwarded-Proto} !https
+  RewriteRule ^ https://%{HTTP_HOST}%{REQUEST_URI} [L,R=301]
+</IfModule>
+
+<IfModule mod_headers.c>
+  Header always set Strict-Transport-Security "max-age=31536000"
+  Header always set X-Robots-Tag "noindex, nofollow, noarchive"
+  Header always set X-Content-Type-Options "nosniff"
+  Header always set X-Frame-Options "DENY"
+  Header always set Referrer-Policy "no-referrer"
+  Header always set Cross-Origin-Opener-Policy "same-origin"
+  Header always set Permissions-Policy "camera=(), microphone=(), geolocation=(), payment=(), usb=(), interest-cohort=()"
+  Header always set Content-Security-Policy "default-src 'none'; script-src 'self'; style-src 'self' 'unsafe-inline'; font-src 'self'; img-src 'self' data: blob: https://xaogettvtlhfejnvmowk.supabase.co; connect-src 'self' https://xaogettvtlhfejnvmowk.supabase.co wss://xaogettvtlhfejnvmowk.supabase.co; manifest-src 'self'; form-action 'none'; frame-ancestors 'none'; base-uri 'none'; object-src 'none'"
+  # Aucune mise en cache : une mise à jour de sécurité doit être prise immédiatement
+  Header always set Cache-Control "no-store, max-age=0"
+  <FilesMatch "^supabase\.js$">
+    Header always set Cache-Control "public, max-age=86400"
+  </FilesMatch>
+</IfModule>
+
+<FilesMatch "^(\.|.*\.sha256$|LICENSE)">
+  Require all denied
+</FilesMatch>

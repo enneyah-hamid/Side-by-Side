@@ -141,7 +141,7 @@
       if (b.action === 'mfa_verify') { db.sessions[sid] = { user: u.id, last: now() }; u.totp = true; delete db.lock[u.email]; ev('mfa_ok', u); } else { db.sessions[sid].last = now(); ev('stepup_ok', u); }
       return J(200, { ok: true, session: { access_token: tok(u, 'aal2', sid, [{ method: 'totp', timestamp: Math.floor(now() / 1000) }, { method: 'password', timestamp: Math.floor(now() / 1000) }]), refresh_token: 'r2-' + u.id }, level: u.level, must_change_password: u.must });
     }
-    if (b.action === 'change_password') { const c = admCtx(auth); if (c.e) return c.e; const pw = String(b.password || ''); if (pw.length < 14 || !/[a-z]/.test(pw) || !/[A-Z]/.test(pw) || !/\d/.test(pw) || !/[^A-Za-z0-9]/.test(pw)) return J(400, { error: '14 caractères minimum, avec minuscules, majuscules, chiffres et symboles.' }); c.u.pw = pw; c.u.must = false; ev('password_changed', c.u); return J(200, { ok: true }); }
+    if (b.action === 'change_password') { const c = admCtx(auth); if (c.e) return c.e; const pw = String(b.password || ''); if (pw.length < 14 || !/[a-z]/.test(pw) || !/[A-Z]/.test(pw) || !/\d/.test(pw) || !/[^A-Za-z0-9]/.test(pw)) return J(400, { error: '14 caractères minimum, avec minuscules, majuscules, chiffres et symboles.' }); c.u.pw = pw; c.u.must = false; ev('password_changed', c.u); Object.values(db.sessions).forEach(x => { if (x.user === c.u.id && !x.ended) x.ended = 'mot_de_passe'; }); return J(200, { ok: true, relogin: true }); }
     if (b.action === 'logout') { const p = payload(auth.replace(/^Bearer /, '')); if (db.sessions[p.session_id]) db.sessions[p.session_id].ended = b.reason || 'deconnexion'; const u = db.users.find(x => x.id === p.sub); if (u) ev(b.reason === 'inactivite' ? 'timeout' : 'logout', u); return J(200, { ok: true }); }
     return J(400, { error: 'Action inconnue' });
   }
@@ -156,7 +156,19 @@
     if (m[1] === 'admin-action') return adminAction(body, c);
     if (m[1] === 'refund-booking') { if (!c.stepOk) return J(428, { error: 'Confirmation requise : saisissez un nouveau code de double authentification.' }); const x = db.bookings.find(y => y.id === body.booking_id); x.status = 'annulee'; db.ledger.push({ id: db.ledger.length + 1, kind: 'Remboursement', amount: -x.amount_total, booking_id: x.id, created_at: iso(now()), bookings: { ref: x.ref } }); return J(200, { ok: true, refund: x.amount_total, pct: 100 }); }
     if (m[1] === 'release-payout') return J(200, { ok: true });
-    if (m[1] === 'tax-admin' || m[1] === 'insurance') return J(200, { ok: true, declarations: [], list: [], items: [], counts: {} });
+    if (m[1] === 'insurance') {
+      db.ins = db.ins || [{ id: 'ins1', companion_id: 'u-comp', name: 'Camille Durand', insurer: 'MAIF', policy_number: 'RC-2026-01', starts_on: '2026-01-01', ends_on: '2027-06-30', status: 'validee', state: 'valide', created_at: iso(now()) },
+        { id: 'ins2', companion_id: 'u-comp2', name: 'Lucas Bernard', insurer: 'AXA', policy_number: 'AX-778', starts_on: '2026-11-01', ends_on: '2027-10-31', status: 'en_attente', state: 'en_attente', created_at: iso(now()) }];
+      if (body.action === 'list') { const st = x => x.state; return J(200, { rows: db.ins, uninsured: db.ins.filter(x => st(x) !== 'valide').map(x => ({ companion_id: x.companion_id, name: x.name })), affected: [], history: [], required: db.settings.insurance_required,
+        counts: { assures: db.ins.filter(x => st(x) === 'valide').length, attente: db.ins.filter(x => st(x) === 'en_attente').length, expirees: 0, bientot: 0, sans: db.ins.filter(x => st(x) !== 'valide').length } }); }
+      if (body.action === 'review') { if (!c.stepOk) return J(428, { error: 'Confirmation requise : saisissez un nouveau code de double authentification.' }); const x = db.ins.find(y => y.id === body.id); x.status = body.approve ? 'validee' : 'refusee'; x.state = body.approve ? 'valide' : 'refusee'; db.audit.unshift({ id: db.audit.length + 1, actor: 'Hamid', action: 'Attestation d\'assurance ' + (body.approve ? 'validée' : 'refusée'), ref: x.companion_id, created_at: iso(now()) }); return J(200, { ok: true }); }
+      if (body.action === 'required') { if (c.u.level !== 'super') return J(403, { error: 'Réservé au super-administrateur.' }); if (!c.stepOk) return J(428, { error: 'Confirmation requise : saisissez un nouveau code de double authentification.' }); db.settings.insurance_required = !!body.on; return J(200, { ok: true }); }
+      return J(200, { ok: true });
+    }
+    if (m[1] === 'tax-admin') {
+      if (body.action === 'overview') return J(200, { year: body.year, companions_total: 2, concerned: 1, total_consideration: 112, total_fees: 28, rows: [], declarations: [], issues: [] });
+      return J(200, { ok: true, declarations: [], list: [], items: [], issues: [] });
+    }
     return J(400, { error: 'Fonction inconnue' });
   };
   const user = () => { if (!session) return null; const p = payload(session.access_token); return { id: p.sub, email: p.email }; };
