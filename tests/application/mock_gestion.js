@@ -181,7 +181,7 @@
     signInWithPassword: async () => ({ data: null, error: { message: 'Utiliser l\'espace de gestion' } }),
     mfa: {
       listFactors: async () => { const u = db.users.find(x => x.id === (user() || {}).id); const f = u && u.totp ? [{ id: 'f-' + u.id, factor_type: 'totp', status: 'verified' }] : []; return { data: { totp: f, all: f }, error: null }; },
-      enroll: async () => ({ data: { id: 'f-new', totp: { qr_code: 'data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 10 10%22%3E%3Crect width=%2210%22 height=%2210%22/%3E%3C/svg%3E', secret: 'JBSWY3DPEHPK3PXP' } }, error: null }),
+      enroll: async () => ({ data: { id: 'f-new', totp: { qr_code: 'data:image/svg+xml;utf-8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 29 29" shape-rendering="crispEdges"><path fill="#fff" d="M0 0h29v29H0z"/><path stroke="#000" d="M4 4.5h7m1 0h1M4 5.5h1m5 0h1"/></svg>', secret: 'JBSWY3DPEHPK3PXP' } }, error: null }),
       unenroll: async () => ({ data: {}, error: null }),
     },
   };

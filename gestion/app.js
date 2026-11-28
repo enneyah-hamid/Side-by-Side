@@ -3080,8 +3080,9 @@ function admLoginPage() {
     <button class="btn pri full" ${G.busy ? 'disabled' : ''}>${G.busy ? 'Vérification…' : 'Continuer'}</button>
     <p class="xs muted">Après 5 échecs, l'accès est bloqué 15 minutes et l'équipe est alertée. Mot de passe ou téléphone perdu : contactez le dirigeant.</p></form>`;
   else if (G.step === 'enroll') body = `<form class="card stack" data-form="adm-mfa"><h3>Activer la double authentification</h3><p class="sm muted">Première connexion : scannez ce QR code avec Google Authenticator (ou Microsoft Authenticator), puis saisissez le code affiché.</p>
-    <div style="text-align:center"><img src="${G.qr}" alt="QR code de double authentification" style="width:200px;height:200px;background:#fff;padding:8px;border-radius:12px;display:inline-block"></div>
-    <p class="xs muted">Ou saisissez la clé : <b class="sel num">${esc(G.secret || '')}</b></p>
+    <div style="text-align:center"><img src="${admQrSrc(G.qr)}" alt="QR code de double authentification" style="width:220px;height:220px;background:#fff;padding:10px;border-radius:12px;display:inline-block"></div>
+    ${G.showKey ? `<p class="xs muted">Clé à saisir dans l'application (« Saisir une clé de configuration », type « basée sur l'heure ») : <b class="sel num">${esc(G.secret || '')}</b><br><b>Ne la photographiez pas et ne la partagez jamais</b> : elle permet de générer vos codes.</p>`
+      : `<p class="xs"><button type="button" class="linkbtn" data-a="adm-showkey">Impossible de scanner ? Afficher la clé de saisie manuelle</button></p>`}
     <div class="field"><label for="am-code">Code à 6 chiffres</label><input id="am-code" name="code" inputmode="numeric" autocomplete="one-time-code" maxlength="6" placeholder="••••••"></div>${err}
     <button class="btn pri full" ${G.busy ? 'disabled' : ''}>Valider</button><button class="btn ghost full" type="button" data-a="adm-cancel">Annuler</button></form>`;
   else if (G.step === 'verify') body = `<form class="card stack" data-form="adm-mfa"><h3>Double authentification</h3><p class="sm muted">Saisissez le code à 6 chiffres de votre application d'authentification.</p>
@@ -3102,7 +3103,7 @@ async function admStartMfa() {
   for (const x of (f && f.all || []).filter(x => x.status !== 'verified')) await SB.auth.mfa.unenroll({ factorId: x.id }).catch(() => {});
   const { data: e, error } = await SB.auth.mfa.enroll({ factorType: 'totp', friendlyName: 'Side by Side Gestion ' + new Date().toISOString().slice(0, 10) });
   if (error) throw error;
-  G.step = 'enroll'; G.factorId = e.id; G.qr = e.totp.qr_code; G.secret = e.totp.secret;
+  G.step = 'enroll'; G.factorId = e.id; G.qr = e.totp.qr_code; G.secret = e.totp.secret; G.showKey = false;
 }
 async function admEnter() {
   const me = await admApi('me');
@@ -3356,9 +3357,20 @@ function vSettings() {
 
 /* ---------- Interactions ---------- */
 async function admRun(p, ok, keys) { try { const r = await p; if (ok) toast(ok); refreshAll(keys); return r; } catch (e) { if (e.message !== 'annulé') toast(e.message, true); render(); return null; } }
+// Le serveur d'authentification renvoie le QR code sous la forme « data:image/svg+xml;utf-8,<svg …> » (SVG brut, non encodé) :
+// placé tel quel dans l'attribut src, il cassait l'image et affichait du code. On l'encode proprement.
+function admQrSrc(q) {
+  q = String(q || '');
+  if (!q) return '';
+  const i = q.indexOf('<svg');
+  if (i >= 0) return 'data:image/svg+xml;charset=utf-8,' + encodeURIComponent(q.slice(i));
+  if (/^data:image\/(png|svg\+xml)[;,]/.test(q)) return q.replace(/"/g, '%22');
+  return '';
+}
 function v30AdminClick(a, el, id, v) {
   switch (a) {
     case 'tab': if (S.role === 'admin' && ADMIN_TABS.includes(v)) { S.tab = v; S.sheet = null; render(); window.scrollTo(0, 0); return true; } return false;
+    case 'adm-showkey': G.showKey = true; render(); return true;
     case 'adm-refresh': refreshAll(); return true;
     case 'notifs': if (S.role === 'admin') { S.tab = 'dashboard'; S.sheet = null; render(); return true; } return false;
     case 'security': if (S.role === 'admin') { S.tab = 'settings'; S.sheet = null; render(); return true; } return false;
@@ -3410,7 +3422,7 @@ function v30AdminSubmit(k, f, d) {
         const r = await admAuth({ action: 'mfa_verify', access_token: s && s.access_token, refresh_token: s && s.refresh_token, code, factor_id: G.factorId });
         if (!r.session) return err(r.error || 'Code incorrect.');
         await SB.auth.setSession({ access_token: r.session.access_token, refresh_token: r.session.refresh_token });
-        G.busy = false; G.qr = null; G.secret = null;
+        G.busy = false; G.qr = null; G.secret = null; G.showKey = false;
         if (r.must_change_password) { G.step = 'pw'; render(); return; }
         try { await admEnter(); } catch (e) { err(e.message); }
       }).catch(() => err('Le serveur ne répond pas. Réessayez.'));
